@@ -1,0 +1,41 @@
+services:
+  - type: worker
+    name: wappkit-social-distributor
+    runtime: docker
+    plan: starter
+    autoDeployTrigger: commit
+    disk:
+      name: wappkit-social-distributor-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: OUTPUTS_DIR
+        value: /data/outputs
+      - key: CHECK_INTERVAL_MINUTES
+        value: "30"
+      - key: MAX_ARTICLES_PER_RUN
+        value: "1"
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: "30"
+      - key: WAPPKIT_SITE_URL
+        value: https://www.wappkit.com
+      - key: WAPPKIT_SITEMAP_URL
+        value: https://www.wappkit.com/sitemap.xml
+      - key: WAPPKIT_RSS_URL
+        value: https://www.wappkit.com/rss.xml
+      - key: WAPPKIT_CONTENT_RAW_BASE_URL
+        value: https://raw.githubusercontent.com/alicekellings/wappkit-web/main/content/blog
+      - key: DEVTO_PUBLISH_STATUS
+        value: draft
+      - key: DEVTO_DEFAULT_TAGS
+        value: wappkit,software,productivity,saas
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.4
+      - key: DEVTO_API_KEY
+        sync: false
