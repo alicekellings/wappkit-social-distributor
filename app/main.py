@@ -70,11 +70,15 @@ def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
                 )
                 if result.is_draft:
                     click.secho(
-                        f"Draft created on DEV.to (id={result.external_id}). Open your DEV.to dashboard to review it.",
+                        f"Draft created on DEV.to (id={result.external_id}, rewrite={describe_rewrite_mode(rewritten)}). "
+                        "Open your DEV.to dashboard to review it.",
                         fg="yellow",
                     )
                 else:
-                    click.secho(f"Published to DEV.to: {result.url}", fg="green")
+                    click.secho(
+                        f"Published to DEV.to: {result.url} (rewrite={describe_rewrite_mode(rewritten)})",
+                        fg="green",
+                    )
 
             processed += 1
             if processed >= config.max_articles_per_run:
