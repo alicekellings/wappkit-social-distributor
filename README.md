@@ -50,6 +50,35 @@ Current publication policy:
 - WordPress.com follows the same safety rule through `WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION`
 - Mastodon can publish summaries through its API and can also require LLM rewrites through `MASTODON_REQUIRE_LLM_FOR_PUBLICATION`
 
+## Platform Rewrite Angles
+
+The distribution worker should not publish near-mirror copies across platforms.
+
+Current enforced angle strategy:
+
+- `Wappkit main site`
+  - the most complete source version
+  - strongest product context, internal links, and primary SEO structure
+- `DEV.to`
+  - builder / operator / developer angle
+  - emphasize workflow, lessons learned, practical execution, and implementation choices
+  - require a platform-native section such as `Practical takeaway`
+- `Blogger`
+  - tutorial / search-reader angle
+  - emphasize steps, structure, simple sequencing, and checklist-style guidance
+  - require a platform-native section such as `Quick steps`
+- `WordPress.com`
+  - case-study / tradeoff / opinionated blog angle
+  - emphasize decisions, fit, tradeoffs, and mistakes to avoid
+  - require a platform-native section such as `Tradeoffs to keep in mind`
+
+Implementation notes:
+
+- both `LLM` and `fallback` rewrites follow platform-specific framing
+- `LLM` rewrites use stronger platform prompts and are expected to meaningfully shift angle
+- `fallback` rewrites still add platform-specific intro, section, and outro so they do not collapse into simple mirrors
+- the code now auto-appends a platform section if the model output forgets to include one
+
 Supported public pool inputs:
 
 - `PUBLIC_API_LIST_FILE`
