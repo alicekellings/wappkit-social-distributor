@@ -308,8 +308,10 @@ You are adapting a Wappkit blog post into a Mastodon post.
 
 Rules:
 - Output a short social post, not a full article.
-- Keep it human and practical.
-- Mention the main takeaway from the article.
+- Keep it human, practical, and native to a social feed.
+- Start with a concise takeaway, opinion, or observation instead of repeating the article title.
+- Mention the main takeaway from the article in a way that feels worth reposting.
+- Avoid sounding like a blog excerpt or an automated summary.
 - Include the source link exactly once near the end.
 - Include 1-3 relevant hashtags.
 - Keep the full post within 450 characters.
@@ -497,7 +499,7 @@ def _build_platform_section(article: SourceArticle, platform_name: str) -> str:
 
 
 def _build_mastodon_status(article: SourceArticle, tags: list[str]) -> str:
-    base = f"{article.title}\n\n{article.description.strip()}\n\n{article.canonical_url}"
+    base = _build_mastodon_lead(article)
     return _truncate_mastodon_status(base, article.canonical_url, tags)
 
 
@@ -515,13 +517,58 @@ def _truncate_mastodon_status(text: str, canonical_url: str, tags: list[str]) ->
         suffix_parts.append(" ".join(hashtags))
     suffix = "\n\n" + "\n".join(suffix_parts)
 
-    cleaned = re.sub(r"\s+", " ", text).strip()
-    cleaned = cleaned.replace(canonical_url, "").strip()
+    cleaned = _normalize_mastodon_text(text).replace(canonical_url, "").strip()
     max_prefix_len = max(40, 450 - len(suffix))
     prefix = cleaned[:max_prefix_len].rstrip()
     if len(cleaned) > max_prefix_len:
         prefix = prefix.rstrip(". ") + "..."
     return (prefix + suffix).strip()
+
+
+def _build_mastodon_lead(article: SourceArticle) -> str:
+    description = (article.description or "").strip().rstrip(".")
+    topic = article.title.strip().rstrip(".")
+    summary = _normalize_sentence(description or f"{topic} is worth testing in a smaller, more focused workflow before scaling it.")
+    summary = _remove_leading_title_echo(summary, topic)
+    lead = f"The practical takeaway: {summary}"
+    if not lead.endswith("."):
+        lead += "."
+
+    follow_up = _mastodon_follow_up_line(article)
+    return f"{lead}\n\n{follow_up}"
+
+
+def _mastodon_follow_up_line(article: SourceArticle) -> str:
+    topic = article.title.strip().rstrip(".")
+    if article.categories:
+        category = article.categories[0].replace("-", " ").strip()
+        return f"I like this angle because it turns `{topic}` into a clearer {category} workflow instead of a vague content dump."
+    return f"I like this angle because it turns `{topic}` into something easier to test in public without overbuilding."
+
+
+def _remove_leading_title_echo(text: str, title: str) -> str:
+    cleaned = text.strip()
+    title_words = re.sub(r"[^a-zA-Z0-9\s]", " ", title).strip().split()
+    if not title_words:
+        return cleaned
+    lowered = cleaned.lower()
+    title_lowered = " ".join(title_words).lower()
+    if lowered.startswith(title_lowered):
+        cleaned = cleaned[len(" ".join(title_words)) :].lstrip(" .:-,")
+    cleaned = re.sub(r"^(how to|guide to|guide for)\s+", "", cleaned, flags=re.I)
+    return cleaned or text.strip()
+
+
+def _normalize_sentence(text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    if not cleaned:
+        return cleaned
+    return cleaned[0].upper() + cleaned[1:]
+
+
+def _normalize_mastodon_text(text: str) -> str:
+    paragraphs = [re.sub(r"\s+", " ", chunk).strip() for chunk in re.split(r"\n\s*\n", text) if chunk.strip()]
+    return "\n\n".join(paragraphs)
 
 
 def _sanitize_tags(seed_tags: list[str], article: SourceArticle, default_tags: list[str]) -> list[str]:

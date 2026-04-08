@@ -50,7 +50,31 @@ def test_mastodon_fallback_rewrite_is_short(tmp_path: Path) -> None:
 
     assert len(rewritten.body_markdown) <= 450
     assert "https://www.wappkit.com/blog/demo-post" in rewritten.body_markdown
+    assert "Demo Post" not in rewritten.body_markdown.split("\n\n", 1)[0]
+    assert "The practical takeaway:" in rewritten.body_markdown
     assert rewritten.rewrite_source == "fallback"
+
+
+def test_mastodon_fallback_rewrite_feels_like_social_summary(tmp_path: Path) -> None:
+    config = build_config(tmp_path)
+    rewriter = MastodonRewriter(config)
+    article = SourceArticle(
+        candidate=ArticleCandidate(slug="demo-post", url="https://www.wappkit.com/blog/demo-post"),
+        title="How to Validate a Reddit Tool Idea",
+        description="A step-by-step look at checking demand before you build too much.",
+        markdown="Body paragraph.",
+        canonical_url="https://www.wappkit.com/blog/demo-post",
+        categories=["guides"],
+        tags=["reddit-toolbox", "saas"],
+    )
+
+    rewritten = rewriter.rewrite(article)
+
+    prefix = rewritten.body_markdown.split("\n\n", 1)[0]
+    assert prefix.endswith(".")
+    assert "Here is" not in rewritten.body_markdown
+    assert "Originally published" not in rewritten.body_markdown
+    assert "#reddittoolbox" in rewritten.body_markdown.lower() or "#saas" in rewritten.body_markdown.lower()
 
 
 def test_mastodon_publisher_builds_payload(tmp_path: Path) -> None:
