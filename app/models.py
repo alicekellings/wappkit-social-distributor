@@ -36,5 +36,6 @@ class RewrittenArticle:
 @dataclass(slots=True)
 class PublishResult:
     external_id: str
-    url: str
+    url: str | None
     raw_response: dict
+    is_draft: bool = False

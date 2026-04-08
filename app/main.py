@@ -50,8 +50,19 @@ def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
                 click.secho(f"Dry-run preview saved to: {preview_path}", fg="green")
             else:
                 result = publisher.publish(rewritten, source)
-                store.mark_success("devto", candidate.slug, result.external_id, result.url)
-                click.secho(f"Published to DEV.to: {result.url}", fg="green")
+                store.mark_success(
+                    "devto",
+                    candidate.slug,
+                    result.external_id,
+                    result.url or "",
+                )
+                if result.is_draft:
+                    click.secho(
+                        f"Draft created on DEV.to (id={result.external_id}). Open your DEV.to dashboard to review it.",
+                        fg="yellow",
+                    )
+                else:
+                    click.secho(f"Published to DEV.to: {result.url}", fg="green")
 
             processed += 1
             if processed >= config.max_articles_per_run:

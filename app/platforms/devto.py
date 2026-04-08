@@ -39,15 +39,25 @@ class DevtoPublisher:
             json=payload,
             headers={
                 "api-key": self.config.devto_api_key,
+                "Accept": "application/vnd.forem.api-v1+json",
                 "Content-Type": "application/json",
             },
             timeout=self.config.request_timeout_seconds,
         )
         response.raise_for_status()
         data = response.json()
+        published = bool(data.get("published"))
+        api_url = str(data.get("url") or "").strip() or None
+
+        # DEV.to draft articles often return a temporary URL such as "...temp-slug-123".
+        # That URL is not a stable public permalink, so we avoid treating it as a final link.
+        if not published and api_url and "temp-slug" in api_url:
+            api_url = None
+
         return PublishResult(
             external_id=str(data.get("id") or ""),
-            url=str(data.get("url") or ""),
+            url=api_url,
+            is_draft=not published,
             raw_response=data,
         )
 
