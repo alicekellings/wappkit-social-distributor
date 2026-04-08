@@ -44,4 +44,5 @@ def test_fallback_rewrite_adds_origin_note_and_strips_duplicate_h1(tmp_path: Pat
     assert "Originally published on [Wappkit]" in rewritten.body_markdown
     assert "https://www.wappkit.com/blog/demo-post" in rewritten.body_markdown
     assert "# Demo Post" not in rewritten.body_markdown
+    assert "DEV.to-friendly version" in rewritten.body_markdown
     assert rewritten.tags

@@ -21,6 +21,35 @@ The first live target is `DEV.to`.
 - publish to `DEV.to` or save a dry-run preview
 - persist delivery history in SQLite
 
+## Rewrite Routing
+
+The `DEV.to` rewrite flow now supports a reusable LLM routing layer:
+
+- public API pool first when enabled
+- direct OpenAI-compatible endpoint second if configured
+- fallback providers such as Groq, NVIDIA, or Cloudflare after that
+- deterministic light rewrite fallback if no model route is usable
+
+This routing logic lives in `app/llm_router.py` so future platforms can reuse it.
+
+Supported public pool inputs:
+
+- `PUBLIC_API_LIST_FILE`
+- `PUBLIC_API_LIST_URL`
+- `PUBLIC_API_LIST_TEXT`
+
+Supported fallback config inputs:
+
+- `MODEL_POOL_CONFIG_FILE`
+- `MODEL_POOL_CONFIG_URL`
+- `MODEL_POOL_CONFIG_JSON`
+
+Or provider-specific env vars:
+
+- `FALLBACK_GROQ_*`
+- `FALLBACK_NVIDIA_*`
+- `FALLBACK_CLOUDFLARE_*`
+
 ## Local Usage
 
 ```bash

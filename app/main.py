@@ -41,6 +41,8 @@ def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
 
         try:
             rewritten = rewriter.rewrite(source)
+            if rewriter.last_provider_label:
+                click.echo(f"Rewrite model: {rewriter.last_provider_label}")
             if dry_run:
                 preview_path = publisher.save_preview(
                     rewritten,
