@@ -12,6 +12,10 @@ from app.source_loader import load_source_article
 from app.store import DeliveryStore
 
 
+def describe_rewrite_mode(rewritten) -> str:
+    return f"{rewritten.rewrite_source}/{rewritten.rewrite_strength}"
+
+
 def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
     config.ensure_runtime_dirs()
     store = DeliveryStore(config.database_path)
@@ -41,6 +45,7 @@ def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
 
         try:
             rewritten = rewriter.rewrite(source)
+            click.echo(f"Rewrite mode: {describe_rewrite_mode(rewritten)}")
             if rewriter.last_provider_label:
                 click.echo(f"Rewrite model: {rewriter.last_provider_label}")
             if rewritten.rewrite_source != "llm":
