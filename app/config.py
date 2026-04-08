@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +18,16 @@ def _env_bool(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_secret_with_b64(plain_name: str, b64_name: str) -> str | None:
+    encoded = os.getenv(b64_name)
+    if encoded:
+        try:
+            return base64.b64decode(encoded.strip()).decode("utf-8")
+        except (binascii.Error, UnicodeDecodeError):
+            pass
+    return os.getenv(plain_name) or None
 
 
 @dataclass(slots=True)
@@ -142,7 +154,7 @@ class Config:
             blogger_publish_status=blogger_publish_status,
             blogger_default_labels=_split_csv(os.getenv("BLOGGER_DEFAULT_LABELS", "wappkit,blog,software")),
             blogger_require_llm_for_publication=_env_bool("BLOGGER_REQUIRE_LLM_FOR_PUBLICATION", True),
-            wordpress_access_token=os.getenv("WORDPRESS_ACCESS_TOKEN") or None,
+            wordpress_access_token=_env_secret_with_b64("WORDPRESS_ACCESS_TOKEN", "WORDPRESS_ACCESS_TOKEN_B64"),
             wordpress_site=os.getenv("WORDPRESS_SITE") or None,
             wordpress_publish_status=wordpress_publish_status,
             wordpress_default_tags=_split_csv(os.getenv("WORDPRESS_DEFAULT_TAGS", "wappkit,blog,software")),

@@ -135,6 +135,10 @@ Required env vars:
 - `WORDPRESS_ACCESS_TOKEN`
 - `WORDPRESS_SITE`
 
+Optional safer secret input:
+
+- `WORDPRESS_ACCESS_TOKEN_B64`
+
 Recommended safety env vars:
 
 ```bash
@@ -147,6 +151,7 @@ Notes:
 - use the WordPress.com site identifier such as `blogxblog2.wordpress.com`
 - the current implementation uses the official WordPress.com REST API
 - draft/public behavior mirrors the DEV.to safety policy
+- on Railway, `WORDPRESS_ACCESS_TOKEN_B64` is safer than raw `WORDPRESS_ACCESS_TOKEN` because some WordPress tokens contain special characters such as `#`
 
 Credential location:
 
