@@ -107,9 +107,10 @@ def _load_from_webpage(config: Config, candidate: ArticleCandidate) -> SourceArt
 
 
 def _parse_frontmatter(raw_text: str) -> tuple[dict, str]:
-    match = FRONTMATTER_RE.match(raw_text)
+    normalized = raw_text.lstrip("\ufeff\u200b").replace("\r\n", "\n")
+    match = FRONTMATTER_RE.match(normalized)
     if not match:
-        return {}, raw_text.strip()
+        return {}, normalized.strip()
     metadata_text, body = match.groups()
     metadata = yaml.safe_load(metadata_text) or {}
     return metadata, body.strip()
