@@ -120,6 +120,14 @@ Notes:
 - `BLOGGER_BLOG_URL` can be a domain like `wappkit.blogspot.com` or a full URL
 - draft/public behavior mirrors the DEV.to safety policy
 
+Credential location:
+
+- Google Cloud Console is not required for the current flow
+- open `https://developers.google.com/oauthplayground/`
+- click the gear icon and enable your own OAuth credentials
+- use scope `https://www.googleapis.com/auth/blogger`
+- complete the authorization flow and copy the returned `access_token`
+
 ## WordPress.com Setup
 
 Required env vars:
@@ -139,6 +147,14 @@ Notes:
 - use the WordPress.com site identifier such as `blogxblog2.wordpress.com`
 - the current implementation uses the official WordPress.com REST API
 - draft/public behavior mirrors the DEV.to safety policy
+
+Credential location:
+
+- create or manage the app at `https://developer.wordpress.com/apps`
+- app edit page example: `https://developer.wordpress.com/apps/<app-id>/settings/`
+- OAuth details page example: `https://developer.wordpress.com/apps/<app-id>/`
+- `Client ID` and `Client Secret` are shown on the app details page, not the settings page
+- exchange them for an `access_token` through `https://public-api.wordpress.com/oauth2/token`
 
 ## Mastodon Setup
 
@@ -203,3 +219,18 @@ Recommended safety setting:
 ```bash
 DEVTO_REQUIRE_LLM_FOR_PUBLICATION=1
 ```
+
+## Credential Notes
+
+Useful current credential entry points:
+
+- `DEV.to`
+  - dashboard path: `https://dev.to/settings/account`
+  - create or copy API key from the DEV Community API Key section
+- `Blogger`
+  - token flow page: `https://developers.google.com/oauthplayground/`
+  - use Blogger scope and copy the returned `access_token`
+- `WordPress.com`
+  - app list: `https://developer.wordpress.com/apps`
+  - app settings page only edits metadata
+  - app details page shows `Client ID` and `Client Secret`

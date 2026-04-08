@@ -36,6 +36,19 @@ def normalize_platforms(platforms: list[str]) -> list[str]:
     return normalized or ["devto"]
 
 
+def log_runtime_config_summary(config: Config) -> None:
+    click.echo(
+        "Runtime config: "
+        f"platforms={','.join(normalize_platforms(config.delivery_platforms))} "
+        f"devto_api_key={'yes' if bool(config.devto_api_key) else 'no'} "
+        f"blogger_access_token={'yes' if bool(config.blogger_access_token) else 'no'} "
+        f"blogger_blog_url={'yes' if bool(config.blogger_blog_url) else 'no'} "
+        f"wordpress_access_token={'yes' if bool(config.wordpress_access_token) else 'no'} "
+        f"wordpress_site={config.wordpress_site or 'missing'} "
+        f"mastodon_access_token={'yes' if bool(config.mastodon_access_token) else 'no'}"
+    )
+
+
 def run_selected_platforms_once(
     config: Config,
     slug: str | None,
@@ -388,6 +401,7 @@ def worker(dry_run: bool) -> None:
     config = Config.load()
     interval_seconds = max(config.check_interval_minutes, 1) * 60
     selected = normalize_platforms(config.delivery_platforms)
+    log_runtime_config_summary(config)
     click.echo(
         f"Starting worker. interval={config.check_interval_minutes}m "
         f"max_articles_per_run={config.max_articles_per_run} platforms={','.join(selected)}"

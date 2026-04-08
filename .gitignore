@@ -1,6 +1,8 @@
 .env
+.env.*.local
 __pycache__/
 .pytest_cache/
 data/
 outputs/
+local-secrets/
 *.pyc
