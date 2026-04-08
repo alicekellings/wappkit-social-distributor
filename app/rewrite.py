@@ -19,5 +19,6 @@ _MODULE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_MODULE)
 
 DevtoRewriter = _MODULE.DevtoRewriter
+BloggerRewriter = _MODULE.BloggerRewriter
 
-__all__ = ["DevtoRewriter"]
+__all__ = ["DevtoRewriter", "BloggerRewriter"]

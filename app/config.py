@@ -37,6 +37,12 @@ class Config:
     devto_publish_status: str
     devto_default_tags: list[str]
     devto_require_llm_for_publication: bool = True
+    blogger_access_token: str | None = None
+    blogger_blog_id: str | None = None
+    blogger_blog_url: str | None = None
+    blogger_publish_status: str = "draft"
+    blogger_default_labels: list[str] | None = None
+    blogger_require_llm_for_publication: bool = True
     use_public_api_pool: bool = False
     public_api_list_file: Path | None = None
     public_api_list_url: str | None = None
@@ -84,6 +90,10 @@ class Config:
         if publish_status not in {"draft", "published"}:
             publish_status = "draft"
 
+        blogger_publish_status = os.getenv("BLOGGER_PUBLISH_STATUS", "draft").strip().lower()
+        if blogger_publish_status not in {"draft", "published"}:
+            blogger_publish_status = "draft"
+
         return cls(
             root_dir=root_dir,
             site_url=os.getenv("WAPPKIT_SITE_URL", "https://www.wappkit.com").rstrip("/"),
@@ -105,6 +115,12 @@ class Config:
             devto_publish_status=publish_status,
             devto_default_tags=_split_csv(os.getenv("DEVTO_DEFAULT_TAGS", "wappkit,software,productivity,saas")),
             devto_require_llm_for_publication=_env_bool("DEVTO_REQUIRE_LLM_FOR_PUBLICATION", True),
+            blogger_access_token=os.getenv("BLOGGER_ACCESS_TOKEN") or None,
+            blogger_blog_id=os.getenv("BLOGGER_BLOG_ID") or None,
+            blogger_blog_url=os.getenv("BLOGGER_BLOG_URL") or None,
+            blogger_publish_status=blogger_publish_status,
+            blogger_default_labels=_split_csv(os.getenv("BLOGGER_DEFAULT_LABELS", "wappkit,blog,software")),
+            blogger_require_llm_for_publication=_env_bool("BLOGGER_REQUIRE_LLM_FOR_PUBLICATION", True),
             use_public_api_pool=_env_bool("USE_PUBLIC_API_POOL", False),
             public_api_list_file=(root_dir / public_api_list_file_raw).resolve() if public_api_list_file_raw else None,
             public_api_list_url=os.getenv("PUBLIC_API_LIST_URL") or None,

@@ -6,8 +6,9 @@ import click
 
 from app.config import Config
 from app.discovery import discover_articles, get_candidate_by_slug
+from app.platforms.blogger import BloggerPublisher
 from app.platforms.devto import DevtoPublisher
-from app.rewrite import DevtoRewriter
+from app.rewrite import BloggerRewriter, DevtoRewriter
 from app.source_loader import load_source_article
 from app.store import DeliveryStore
 
@@ -92,6 +93,82 @@ def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
     return processed
 
 
+def run_blogger_once(config: Config, slug: str | None, dry_run: bool) -> int:
+    config.ensure_runtime_dirs()
+    store = DeliveryStore(config.database_path)
+    publisher = BloggerPublisher(config)
+    rewriter = BloggerRewriter(config)
+
+    if slug:
+        candidates = [get_candidate_by_slug(config, slug)]
+    else:
+        candidates = discover_articles(config, limit=max(config.max_articles_per_run * 3, 10))
+
+    processed = 0
+
+    for candidate in candidates:
+        if not slug and store.has_success("blogger", candidate.slug):
+            continue
+
+        click.echo(f"Preparing Blogger delivery for: {candidate.slug}")
+        source = load_source_article(config, candidate)
+        store.mark_attempt(
+            platform="blogger",
+            source_slug=candidate.slug,
+            source_url=candidate.url,
+            title=source.title,
+            source_updated_at=candidate.last_modified,
+        )
+
+        try:
+            rewritten = rewriter.rewrite(source)
+            click.echo(f"Rewrite mode: {describe_rewrite_mode(rewritten)}")
+            if rewriter.last_provider_label:
+                click.echo(f"Rewrite model: {rewriter.last_provider_label}")
+            if rewritten.rewrite_source != "llm":
+                click.secho(
+                    "Rewrite fallback detected; Blogger delivery will stay in draft mode for safety.",
+                    fg="yellow",
+                )
+            if dry_run:
+                preview_path = publisher.save_preview(
+                    rewritten,
+                    source,
+                    config.outputs_dir / "previews",
+                )
+                click.secho(f"Dry-run preview saved to: {preview_path}", fg="green")
+            else:
+                result = publisher.publish(rewritten, source)
+                store.mark_success(
+                    "blogger",
+                    candidate.slug,
+                    result.external_id,
+                    result.url or "",
+                )
+                if result.is_draft:
+                    click.secho(
+                        f"Draft created on Blogger (id={result.external_id}, rewrite={describe_rewrite_mode(rewritten)}). "
+                        "Review it in Blogger before publishing.",
+                        fg="yellow",
+                    )
+                else:
+                    click.secho(
+                        f"Published to Blogger: {result.url} (rewrite={describe_rewrite_mode(rewritten)})",
+                        fg="green",
+                    )
+
+            processed += 1
+            if processed >= config.max_articles_per_run:
+                break
+        except Exception as exc:
+            store.mark_failure("blogger", candidate.slug, str(exc))
+            click.secho(f"Blogger delivery failed for {candidate.slug}: {exc}", fg="red")
+            if slug:
+                raise
+
+    return processed
+
+
 @click.group()
 def cli() -> None:
     """Wappkit social distributor CLI."""
@@ -112,6 +189,15 @@ def discover(limit: int) -> None:
 def run_once(slug: str | None, dry_run: bool) -> None:
     config = Config.load()
     processed = run_devto_once(config, slug=slug, dry_run=dry_run)
+    click.echo(f"Processed {processed} article(s).")
+
+
+@cli.command("run-blogger-once")
+@click.option("--slug", default=None, help="Force a specific blog slug.")
+@click.option("--dry-run", is_flag=True, default=False, help="Generate preview files without publishing.")
+def run_blogger_once_command(slug: str | None, dry_run: bool) -> None:
+    config = Config.load()
+    processed = run_blogger_once(config, slug=slug, dry_run=dry_run)
     click.echo(f"Processed {processed} article(s).")
 
 

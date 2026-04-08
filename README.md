@@ -11,6 +11,8 @@ It does one job:
 
 The first live target is `DEV.to`.
 
+The next integrated target is `Blogger / Blogspot`.
+
 ## Phase 1 Scope
 
 - pull the latest blog candidates from `sitemap.xml`
@@ -19,6 +21,7 @@ The first live target is `DEV.to`.
 - fall back to webpage extraction if raw source is unavailable
 - rewrite the article for `DEV.to`
 - publish to `DEV.to` or save a dry-run preview
+- optionally rewrite and publish to `Blogger`
 - persist delivery history in SQLite
 
 ## Rewrite Routing
@@ -37,6 +40,7 @@ Current publication policy:
 - LLM rewrites aim for a moderate DEV.to adaptation, not a mirror copy
 - fallback rewrites are safety drafts only
 - if `DEVTO_PUBLISH_STATUS=published`, the worker still forces `fallback` rewrites to stay draft unless you disable `DEVTO_REQUIRE_LLM_FOR_PUBLICATION`
+- Blogger follows the same safety rule through `BLOGGER_REQUIRE_LLM_FOR_PUBLICATION`
 
 Supported public pool inputs:
 
@@ -65,7 +69,31 @@ pip install -r requirements.txt
 python -m app.main discover --limit 5
 python -m app.main run-once --dry-run
 python -m app.main run-once --slug choosing-a-clean-tool-structure-for-wappkit --dry-run
+python -m app.main run-blogger-once --dry-run
+python -m app.main run-blogger-once --slug choosing-a-clean-tool-structure-for-wappkit --dry-run
 ```
+
+## Blogger Setup
+
+The Blogger integration is aimed at Blogspot / Blogger blogs such as `wappkit.blogspot.com`.
+
+Required env vars:
+
+- `BLOGGER_ACCESS_TOKEN`
+- one of `BLOGGER_BLOG_ID` or `BLOGGER_BLOG_URL`
+
+Recommended safety env vars:
+
+```bash
+BLOGGER_PUBLISH_STATUS=draft
+BLOGGER_REQUIRE_LLM_FOR_PUBLICATION=1
+```
+
+Notes:
+
+- the current implementation uses the official Blogger API
+- `BLOGGER_BLOG_URL` can be a domain like `wappkit.blogspot.com` or a full URL
+- draft/public behavior mirrors the DEV.to safety policy
 
 ## Deployment Direction
 
