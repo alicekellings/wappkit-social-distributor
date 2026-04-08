@@ -16,6 +16,7 @@ The next integrated targets are:
 - `Blogger / Blogspot`
 - `WordPress.com`
 - `Mastodon`
+- `Tumblr`
 
 ## Phase 1 Scope
 
@@ -28,6 +29,7 @@ The next integrated targets are:
 - optionally rewrite and publish to `Blogger`
 - optionally rewrite and publish to `WordPress.com`
 - optionally rewrite and publish short social posts to `Mastodon`
+- optionally rewrite and publish adapted drafts to `Tumblr`
 - persist delivery history in SQLite
 
 ## Rewrite Routing
@@ -71,6 +73,10 @@ Current enforced angle strategy:
   - case-study / tradeoff / opinionated blog angle
   - emphasize decisions, fit, tradeoffs, and mistakes to avoid
   - require a platform-native section such as `Tradeoffs to keep in mind`
+- `Tumblr`
+  - internet-native note / curated digest angle
+  - emphasize what stood out, why it matters, and what deserves attention next
+  - require a platform-native section such as `Why this matters`
 
 Implementation notes:
 
@@ -110,6 +116,7 @@ python -m app.main run-blogger-once --dry-run
 python -m app.main run-blogger-once --slug choosing-a-clean-tool-structure-for-wappkit --dry-run
 python -m app.main run-wordpress-once --dry-run
 python -m app.main run-mastodon-once --dry-run
+python -m app.main run-tumblr-once --dry-run
 python -m app.main run-selected-once --dry-run
 ```
 
@@ -123,6 +130,7 @@ Examples:
 DELIVERY_PLATFORMS=devto
 DELIVERY_PLATFORMS=devto,blogger,wordpress
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon
+DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr
 ```
 
 The worker now runs all selected platforms in sequence during each cycle.
@@ -234,6 +242,38 @@ Notes:
 - the current implementation uses the official Mastodon API
 - on Railway, `MASTODON_ACCESS_TOKEN_B64` is safer than raw `MASTODON_ACCESS_TOKEN` when you want to avoid copy/paste or env formatting issues
 
+## Tumblr Setup
+
+Required env vars:
+
+- `TUMBLR_CLIENT_ID`
+- `TUMBLR_CLIENT_SECRET`
+- one of `TUMBLR_ACCESS_TOKEN` or `TUMBLR_ACCESS_TOKEN_B64`
+- one of `TUMBLR_REFRESH_TOKEN` or `TUMBLR_REFRESH_TOKEN_B64`
+- `TUMBLR_BLOG_IDENTIFIER`
+
+Recommended safety env vars:
+
+```bash
+TUMBLR_PUBLISH_STATUS=draft
+TUMBLR_REQUIRE_LLM_FOR_PUBLICATION=1
+```
+
+Notes:
+
+- the current implementation uses the official Tumblr OAuth2 flow
+- local verification already succeeded with a real draft post on `myawesomeblogs`
+- `TUMBLR_BLOG_IDENTIFIER` can be `myawesomeblogs` or `myawesomeblogs.tumblr.com`
+- the publisher automatically retries once with a refreshed access token after a `401`
+- on Railway, `TUMBLR_ACCESS_TOKEN_B64` and `TUMBLR_REFRESH_TOKEN_B64` are safer than raw token values
+
+Credential location:
+
+- app registration page: `https://www.tumblr.com/oauth/apps`
+- OAuth2 authorize URL: `https://www.tumblr.com/oauth2/authorize`
+- OAuth2 token URL: `https://api.tumblr.com/v2/oauth2/token`
+- after OAuth2 exchange, keep both the `access_token` and `refresh_token`
+
 ## Deployment Direction
 
 Recommended first deployment shape:
@@ -296,6 +336,10 @@ Useful current credential entry points:
 - `Mastodon`
   - app list: `https://mastodon.social/settings/applications`
   - app details page shows `Application ID`, `Application secret`, and `Your access token`
+- `Tumblr`
+  - app list: `https://www.tumblr.com/oauth/apps`
+  - app details page shows `OAuth Consumer Key` and `Secret Key`
+  - OAuth2 flow returns both `access_token` and `refresh_token`
 
 ## Debug Checklist
 
@@ -315,3 +359,4 @@ Recommended Railway secret habits:
 - do not wrap full values in quotes unless the platform explicitly requires it
 - for secrets with problematic special characters, prefer a base64 env input and decode in app code
 - this repo currently supports base64 env inputs for both `WORDPRESS_ACCESS_TOKEN_B64` and `MASTODON_ACCESS_TOKEN_B64`
+- this repo also supports `TUMBLR_ACCESS_TOKEN_B64` and `TUMBLR_REFRESH_TOKEN_B64`

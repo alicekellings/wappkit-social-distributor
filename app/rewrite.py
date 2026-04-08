@@ -22,5 +22,6 @@ DevtoRewriter = _MODULE.DevtoRewriter
 BloggerRewriter = _MODULE.BloggerRewriter
 WordpressRewriter = _MODULE.WordpressRewriter
 MastodonRewriter = _MODULE.MastodonRewriter
+TumblrRewriter = _MODULE.TumblrRewriter
 
-__all__ = ["DevtoRewriter", "BloggerRewriter", "WordpressRewriter", "MastodonRewriter"]
+__all__ = ["DevtoRewriter", "BloggerRewriter", "WordpressRewriter", "MastodonRewriter", "TumblrRewriter"]

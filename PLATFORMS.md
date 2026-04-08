@@ -51,19 +51,38 @@ This file tracks which external distribution platforms are already wired into `w
   - Notes:
     - current publishing path works in production
     - Railway is more stable with `MASTODON_ACCESS_TOKEN_B64` when token copying becomes inconsistent
-    - for early stage use, `MASTODON_REQUIRE_LLM_FOR_PUBLICATION=0` is more practical
-    - Mastodon is intentionally treated as a short social summary platform, not a long-form mirror
+  - for early stage use, `MASTODON_REQUIRE_LLM_FOR_PUBLICATION=0` is more practical
+  - Mastodon is intentionally treated as a short social summary platform, not a long-form mirror
+
+- `Tumblr`
+  - Type: adapted blog draft / curated note
+  - Auth: OAuth2 access token + refresh token
+  - Status: code integrated and locally verified with a real draft publish
+  - Current target: `https://myawesomeblogs.tumblr.com/`
+  - Credential entry:
+    - app list: `https://www.tumblr.com/oauth/apps`
+    - OAuth2 authorize URL: `https://www.tumblr.com/oauth2/authorize`
+    - OAuth2 token URL: `https://api.tumblr.com/v2/oauth2/token`
+  - Main env vars:
+    - `TUMBLR_CLIENT_ID`
+    - `TUMBLR_CLIENT_SECRET`
+    - `TUMBLR_ACCESS_TOKEN`
+    - `TUMBLR_ACCESS_TOKEN_B64`
+    - `TUMBLR_REFRESH_TOKEN`
+    - `TUMBLR_REFRESH_TOKEN_B64`
+    - `TUMBLR_BLOG_IDENTIFIER`
+    - `TUMBLR_PUBLISH_STATUS`
+    - `TUMBLR_REQUIRE_LLM_FOR_PUBLICATION`
+  - Notes:
+    - current implementation automatically refreshes the access token after a `401`
+    - blog identifier can be `myawesomeblogs` or `myawesomeblogs.tumblr.com`
+    - Railway is safer with the `B64` token variants
 
 ## Evaluated But Not Integrated Yet
 
 - `WordPress self-hosted`
   - Possible through the WordPress REST API
   - Not added yet because current target is WordPress.com
-
-- `Tumblr`
-  - Possible through the Tumblr API
-  - Official entry point: `https://www.tumblr.com/developers`
-  - Likely next best candidate because it still supports official API-based publishing and fits mixed blog/social distribution
 
 - `LinkedIn`
   - API exists, but publishing is more constrained and less suitable for full-article mirroring

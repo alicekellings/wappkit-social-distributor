@@ -301,6 +301,94 @@ Original markdown:
         )
 
 
+class TumblrRewriter(_BasePlatformRewriter):
+    def _llm_rewrite(self, article: SourceArticle) -> RewrittenArticle:
+        prompt = f"""
+You are adapting a Wappkit blog post for Tumblr.
+
+Rules:
+- Make this clearly feel like a Tumblr-native blog note, not a copy-paste mirror.
+- Keep it human, readable, and a bit more internet-native than the main site version.
+- Preserve the real topic and useful details.
+- Rewrite the title so it feels natural on Tumblr. Do not reuse the source title verbatim.
+- Rewrite the opening with a fresh angle that feels like an informed note, observation, or short essay.
+- Shift the framing toward what stood out, why it matters, and what a reader should notice next.
+- Keep the wording meaningfully different from the source.
+- Remove obvious site-only CTA wording if it sounds too salesy.
+- Keep a short note near the top that this version was originally published on Wappkit.
+- Keep a source link back to Wappkit near the end.
+- Add one short Tumblr-native section near the end, such as "Why this matters", "What stood out", or "What I would watch next".
+- Keep markdown formatting.
+- Do not invent facts.
+- Avoid copying long verbatim passages from the source unless they are necessary quotes or exact labels.
+- Aim for a strong platform adaptation, not a superficial synonym swap.
+- Output valid JSON only.
+
+JSON schema:
+{{
+  "title": "string",
+  "description": "string under 200 chars",
+  "body_markdown": "string",
+  "tags": ["string", "string"]
+}}
+
+Canonical URL: {article.canonical_url}
+Original title: {article.title}
+Original description: {article.description}
+Original markdown:
+{article.markdown}
+""".strip()
+
+        payload = self.router.complete_json(
+            system_prompt="You rewrite articles for publication on Tumblr and return JSON only.",
+            user_prompt=prompt,
+            temperature=0.45,
+        )
+
+        return RewrittenArticle(
+            title=str(payload.get("title") or article.title).strip(),
+            description=str(payload.get("description") or article.description).strip()[:200],
+            body_markdown=_ensure_platform_body(
+                str(payload.get("body_markdown") or article.markdown).strip(),
+                article,
+                platform_name="Tumblr",
+            ),
+            tags=_sanitize_tags(
+                [str(tag) for tag in payload.get("tags", [])],
+                article,
+                self.config.tumblr_default_tags or ["wappkit", "blog", "software"],
+            ),
+            rewrite_source="llm",
+            rewrite_strength="moderate",
+        )
+
+    def _fallback_rewrite(self, article: SourceArticle) -> RewrittenArticle:
+        body = _strip_duplicate_h1(article.markdown, article.title)
+        body = _strip_marketing_lines(body)
+        body = _build_tumblr_style_intro(article) + "\n\n" + body.strip()
+        body = _ensure_platform_specific_section(body, article, platform_name="Tumblr")
+        body = _ensure_origin_note(body, article.canonical_url, platform_name="Tumblr")
+        body = body.strip()
+        body += (
+            "\n\n---\n\n"
+            f"Originally published on [Wappkit]({article.canonical_url}). "
+            "Read the source there for the full version and current product context."
+        )
+
+        return RewrittenArticle(
+            title=article.title.strip(),
+            description=(article.description or article.title).strip()[:200],
+            body_markdown=body,
+            tags=_sanitize_tags(
+                article.tags + article.categories,
+                article,
+                self.config.tumblr_default_tags or ["wappkit", "blog", "software"],
+            ),
+            rewrite_source="fallback",
+            rewrite_strength="minimal",
+        )
+
+
 class MastodonRewriter(_BasePlatformRewriter):
     def _llm_rewrite(self, article: SourceArticle) -> RewrittenArticle:
         prompt = f"""
@@ -453,6 +541,18 @@ def _build_wordpress_style_intro(article: SourceArticle) -> str:
     return "\n\n".join(parts)
 
 
+def _build_tumblr_style_intro(article: SourceArticle) -> str:
+    title_hint = article.title.replace("How to ", "").replace("Guide", "").strip()
+    description = article.description.strip().rstrip(".")
+    parts = [
+        f"Here is a Tumblr-friendly adaptation of my original Wappkit article about `{title_hint}`.",
+    ]
+    if description:
+        parts.append(description + ".")
+    parts.append("I kept the useful parts, tightened the framing, and turned it into more of a quick note about what stands out and why.")
+    return "\n\n".join(parts)
+
+
 def _platform_section_heading(platform_name: str) -> str:
     if platform_name == "DEV.to":
         return "Practical takeaway"
@@ -460,6 +560,8 @@ def _platform_section_heading(platform_name: str) -> str:
         return "Quick steps"
     if platform_name == "WordPress.com":
         return "Tradeoffs to keep in mind"
+    if platform_name == "Tumblr":
+        return "Why this matters"
     raise ValueError(f"Unsupported platform section heading for {platform_name}")
 
 
@@ -493,6 +595,15 @@ def _build_platform_section(article: SourceArticle, platform_name: str) -> str:
             "The upside is speed and clarity once the process is defined.",
             "The downside is that the wrong framing can make the result look generic, especially when the same topic is published across multiple platforms.",
             "That is why this version focuses more on decisions, fit, and tradeoffs than a simple how-to sequence.",
+        ]
+        return "\n".join(lines)
+    if platform_name == "Tumblr":
+        lines = [
+            "## Why this matters",
+            "",
+            f"`{topic}` gets more useful when you treat it as a framing signal, not just another content template.",
+            "That is the Tumblr angle here: what stands out, what feels real, and what deserves a second look before it gets flattened into generic advice.",
+            "If the main site version is the full reference, this version is the sharper note about what matters first.",
         ]
         return "\n".join(lines)
     raise ValueError(f"Unsupported platform section builder for {platform_name}")

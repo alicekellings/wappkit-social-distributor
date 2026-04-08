@@ -67,6 +67,14 @@ class Config:
     mastodon_visibility: str = "unlisted"
     mastodon_language: str = "en"
     mastodon_require_llm_for_publication: bool = True
+    tumblr_client_id: str | None = None
+    tumblr_client_secret: str | None = None
+    tumblr_access_token: str | None = None
+    tumblr_refresh_token: str | None = None
+    tumblr_blog_identifier: str | None = None
+    tumblr_publish_status: str = "draft"
+    tumblr_default_tags: list[str] | None = None
+    tumblr_require_llm_for_publication: bool = True
     use_public_api_pool: bool = False
     public_api_list_file: Path | None = None
     public_api_list_url: str | None = None
@@ -122,6 +130,10 @@ class Config:
         if wordpress_publish_status not in {"draft", "published"}:
             wordpress_publish_status = "draft"
 
+        tumblr_publish_status = os.getenv("TUMBLR_PUBLISH_STATUS", "draft").strip().lower()
+        if tumblr_publish_status not in {"draft", "published"}:
+            tumblr_publish_status = "draft"
+
         mastodon_visibility = os.getenv("MASTODON_VISIBILITY", "unlisted").strip().lower()
         if mastodon_visibility not in {"public", "unlisted", "private", "direct"}:
             mastodon_visibility = "unlisted"
@@ -165,6 +177,14 @@ class Config:
             mastodon_visibility=mastodon_visibility,
             mastodon_language=os.getenv("MASTODON_LANGUAGE", "en"),
             mastodon_require_llm_for_publication=_env_bool("MASTODON_REQUIRE_LLM_FOR_PUBLICATION", True),
+            tumblr_client_id=os.getenv("TUMBLR_CLIENT_ID") or None,
+            tumblr_client_secret=os.getenv("TUMBLR_CLIENT_SECRET") or None,
+            tumblr_access_token=_env_secret_with_b64("TUMBLR_ACCESS_TOKEN", "TUMBLR_ACCESS_TOKEN_B64"),
+            tumblr_refresh_token=_env_secret_with_b64("TUMBLR_REFRESH_TOKEN", "TUMBLR_REFRESH_TOKEN_B64"),
+            tumblr_blog_identifier=os.getenv("TUMBLR_BLOG_IDENTIFIER") or None,
+            tumblr_publish_status=tumblr_publish_status,
+            tumblr_default_tags=_split_csv(os.getenv("TUMBLR_DEFAULT_TAGS", "wappkit,blog,software")),
+            tumblr_require_llm_for_publication=_env_bool("TUMBLR_REQUIRE_LLM_FOR_PUBLICATION", True),
             use_public_api_pool=_env_bool("USE_PUBLIC_API_POOL", False),
             public_api_list_file=(root_dir / public_api_list_file_raw).resolve() if public_api_list_file_raw else None,
             public_api_list_url=os.getenv("PUBLIC_API_LIST_URL") or None,
