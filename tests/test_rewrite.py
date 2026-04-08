@@ -46,3 +46,22 @@ def test_fallback_rewrite_adds_origin_note_and_strips_duplicate_h1(tmp_path: Pat
     assert "# Demo Post" not in rewritten.body_markdown
     assert "DEV.to-friendly version" in rewritten.body_markdown
     assert rewritten.tags
+
+
+def test_fallback_rewrite_strips_multiple_leading_h1_blocks(tmp_path: Path) -> None:
+    config = build_config(tmp_path)
+    rewriter = DevtoRewriter(config)
+    article = SourceArticle(
+        candidate=ArticleCandidate(slug="demo-post", url="https://www.wappkit.com/blog/demo-post"),
+        title="Demo Post",
+        description="Demo description",
+        markdown="# Demo Post\n\n# Demo Post\n\nBody paragraph.",
+        canonical_url="https://www.wappkit.com/blog/demo-post",
+        categories=["guides"],
+        tags=["reddit-toolbox"],
+    )
+
+    rewritten = rewriter.rewrite(article)
+
+    assert rewritten.body_markdown.count("# Demo Post") == 0
+    assert "Body paragraph." in rewritten.body_markdown

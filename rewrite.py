@@ -104,7 +104,12 @@ def _ensure_origin_note(markdown: str, canonical_url: str) -> str:
 
 def _strip_duplicate_h1(markdown: str, title: str) -> str:
     escaped = re.escape(title.strip())
-    return re.sub(rf"(?im)\A#\s+{escaped}\s*\n+", "", markdown.strip(), count=1)
+    cleaned = markdown.strip()
+    while True:
+        updated = re.sub(rf"(?im)\A#\s+{escaped}\s*\n+", "", cleaned, count=1)
+        if updated == cleaned:
+            return cleaned
+        cleaned = updated.lstrip()
 
 
 def _strip_marketing_lines(markdown: str) -> str:

@@ -69,19 +69,23 @@ Recommended first deployment shape:
 - one persistent disk mounted to `/data`
 - worker checks every 30 minutes
 
-## Render Deployment
+## Railway Deployment
 
-This repo now includes [render.yaml](./render.yaml) for a Render Blueprint deployment.
+Current preferred deployment is Railway.
 
-Recommended Render setup:
+Recommended Railway setup:
 
-- service type: `Background Worker`
-- runtime: `Docker`
-- persistent disk mounted at `/data`
-- fill secret env vars in Render:
+- service type: worker / background service
+- runtime: Docker
+- persistent volume mounted to `/data`
+- start command: `python -m app.main worker`
+- fill secret env vars in Railway:
   - `DEVTO_API_KEY`
-  - `OPENAI_API_KEY`
-  - `OPENAI_BASE_URL` if you are not using the default OpenAI endpoint
+  - `USE_PUBLIC_API_POOL=1` if you want public GPT-compatible endpoints to be probed first
+  - one of `PUBLIC_API_LIST_TEXT`, `PUBLIC_API_LIST_URL`, or `PUBLIC_API_LIST_FILE`
+  - optional fallback vars such as `FALLBACK_GROQ_*`, `FALLBACK_NVIDIA_*`, `FALLBACK_CLOUDFLARE_*`
+
+The existing [render.yaml](./render.yaml) can stay as a fallback reference, but Railway is the current live path.
 
 If you want the first few runs to stay safe, keep:
 
