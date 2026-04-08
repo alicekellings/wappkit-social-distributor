@@ -105,7 +105,7 @@ class TumblrPublisher:
         }
 
     def _ensure_access_token(self) -> str:
-        access_token = self._token_state.get("access_token") or self.config.tumblr_access_token
+        access_token = self.config.tumblr_access_token or self._token_state.get("access_token")
         if access_token:
             return str(access_token)
         if self._can_refresh():
@@ -116,7 +116,7 @@ class TumblrPublisher:
         return bool(self._refresh_token() and self.config.tumblr_client_id and self.config.tumblr_client_secret)
 
     def _refresh_token(self) -> str | None:
-        return self._token_state.get("refresh_token") or self.config.tumblr_refresh_token or None
+        return self.config.tumblr_refresh_token or self._token_state.get("refresh_token") or None
 
     def _refresh_access_token(self) -> str:
         refresh_token = self._refresh_token()
