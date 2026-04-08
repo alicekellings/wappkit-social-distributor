@@ -36,6 +36,7 @@ class Config:
     devto_api_key: str | None
     devto_publish_status: str
     devto_default_tags: list[str]
+    delivery_platforms: list[str] | None = None
     devto_require_llm_for_publication: bool = True
     blogger_access_token: str | None = None
     blogger_blog_id: str | None = None
@@ -127,6 +128,7 @@ class Config:
             request_timeout_seconds=int(os.getenv("REQUEST_TIMEOUT_SECONDS", "30")),
             check_interval_minutes=int(os.getenv("CHECK_INTERVAL_MINUTES", "30")),
             max_articles_per_run=int(os.getenv("MAX_ARTICLES_PER_RUN", "1")),
+            delivery_platforms=_split_csv(os.getenv("DELIVERY_PLATFORMS", "devto")),
             openai_api_key=os.getenv("OPENAI_API_KEY") or None,
             openai_base_url=os.getenv("OPENAI_BASE_URL") or None,
             openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4"),

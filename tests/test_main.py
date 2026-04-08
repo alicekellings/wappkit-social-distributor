@@ -1,4 +1,4 @@
-from app.main import describe_rewrite_mode
+from app.main import describe_rewrite_mode, normalize_platforms
 from app.models import RewrittenArticle
 
 
@@ -26,3 +26,11 @@ def test_describe_rewrite_mode_for_fallback_article() -> None:
     )
 
     assert describe_rewrite_mode(rewritten) == "fallback/minimal"
+
+
+def test_normalize_platforms_keeps_supported_unique_values() -> None:
+    assert normalize_platforms(["devto", "blogger", "devto", "mastodon"]) == ["devto", "blogger", "mastodon"]
+
+
+def test_normalize_platforms_falls_back_to_devto() -> None:
+    assert normalize_platforms(["unknown"]) == ["devto"]

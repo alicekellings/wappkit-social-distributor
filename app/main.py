@@ -15,8 +15,44 @@ from app.source_loader import load_source_article
 from app.store import DeliveryStore
 
 
+SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon")
+
+
 def describe_rewrite_mode(rewritten) -> str:
     return f"{rewritten.rewrite_source}/{rewritten.rewrite_strength}"
+
+
+def normalize_platforms(platforms: list[str]) -> list[str]:
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for platform in platforms:
+        token = (platform or "").strip().lower()
+        if token not in SUPPORTED_PLATFORMS:
+            continue
+        if token in seen:
+            continue
+        seen.add(token)
+        normalized.append(token)
+    return normalized or ["devto"]
+
+
+def run_selected_platforms_once(
+    config: Config,
+    slug: str | None,
+    dry_run: bool,
+    platforms: list[str] | None = None,
+) -> dict[str, int]:
+    selected = normalize_platforms(platforms or config.delivery_platforms)
+    runners = {
+        "devto": run_devto_once,
+        "blogger": run_blogger_once,
+        "wordpress": run_wordpress_once,
+        "mastodon": run_mastodon_once,
+    }
+    results: dict[str, int] = {}
+    for platform in selected:
+        results[platform] = runners[platform](config, slug=slug, dry_run=dry_run)
+    return results
 
 
 def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
@@ -309,6 +345,16 @@ def run_once(slug: str | None, dry_run: bool) -> None:
     click.echo(f"Processed {processed} article(s).")
 
 
+@cli.command("run-selected-once")
+@click.option("--slug", default=None, help="Force a specific blog slug.")
+@click.option("--dry-run", is_flag=True, default=False, help="Generate preview files without publishing.")
+def run_selected_once_command(slug: str | None, dry_run: bool) -> None:
+    config = Config.load()
+    results = run_selected_platforms_once(config, slug=slug, dry_run=dry_run)
+    summary = ", ".join(f"{platform}={count}" for platform, count in results.items())
+    click.echo(f"Processed article counts: {summary}")
+
+
 @cli.command("run-blogger-once")
 @click.option("--slug", default=None, help="Force a specific blog slug.")
 @click.option("--dry-run", is_flag=True, default=False, help="Generate preview files without publishing.")
@@ -341,13 +387,16 @@ def run_mastodon_once_command(slug: str | None, dry_run: bool) -> None:
 def worker(dry_run: bool) -> None:
     config = Config.load()
     interval_seconds = max(config.check_interval_minutes, 1) * 60
+    selected = normalize_platforms(config.delivery_platforms)
     click.echo(
-        f"Starting worker. interval={config.check_interval_minutes}m max_articles_per_run={config.max_articles_per_run}"
+        f"Starting worker. interval={config.check_interval_minutes}m "
+        f"max_articles_per_run={config.max_articles_per_run} platforms={','.join(selected)}"
     )
     while True:
         try:
-            processed = run_devto_once(config, slug=None, dry_run=dry_run)
-            click.echo(f"Worker cycle finished. processed={processed}")
+            results = run_selected_platforms_once(config, slug=None, dry_run=dry_run, platforms=selected)
+            summary = ", ".join(f"{platform}={count}" for platform, count in results.items())
+            click.echo(f"Worker cycle finished. processed={summary}")
         except Exception as exc:
             click.secho(f"Worker cycle error: {exc}", fg="red")
         time.sleep(interval_seconds)

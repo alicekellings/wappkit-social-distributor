@@ -81,7 +81,22 @@ python -m app.main run-blogger-once --dry-run
 python -m app.main run-blogger-once --slug choosing-a-clean-tool-structure-for-wappkit --dry-run
 python -m app.main run-wordpress-once --dry-run
 python -m app.main run-mastodon-once --dry-run
+python -m app.main run-selected-once --dry-run
 ```
+
+## Multi-Platform Worker
+
+Use `DELIVERY_PLATFORMS` to decide which platforms the long-running worker should process.
+
+Examples:
+
+```bash
+DELIVERY_PLATFORMS=devto
+DELIVERY_PLATFORMS=devto,blogger,wordpress
+DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon
+```
+
+The worker now runs all selected platforms in sequence during each cycle.
 
 ## Blogger Setup
 
