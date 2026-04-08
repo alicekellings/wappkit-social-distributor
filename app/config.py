@@ -161,7 +161,7 @@ class Config:
             wordpress_default_categories=_split_csv(os.getenv("WORDPRESS_DEFAULT_CATEGORIES", "Wappkit")),
             wordpress_require_llm_for_publication=_env_bool("WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION", True),
             mastodon_base_url=os.getenv("MASTODON_BASE_URL") or None,
-            mastodon_access_token=os.getenv("MASTODON_ACCESS_TOKEN") or None,
+            mastodon_access_token=_env_secret_with_b64("MASTODON_ACCESS_TOKEN", "MASTODON_ACCESS_TOKEN_B64"),
             mastodon_visibility=mastodon_visibility,
             mastodon_language=os.getenv("MASTODON_LANGUAGE", "en"),
             mastodon_require_llm_for_publication=_env_bool("MASTODON_REQUIRE_LLM_FOR_PUBLICATION", True),

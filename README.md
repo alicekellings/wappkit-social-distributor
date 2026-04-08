@@ -217,6 +217,10 @@ Required env vars:
 - `MASTODON_BASE_URL`
 - `MASTODON_ACCESS_TOKEN`
 
+Optional safer secret input:
+
+- `MASTODON_ACCESS_TOKEN_B64`
+
 Recommended safety env vars:
 
 ```bash
@@ -228,6 +232,7 @@ Notes:
 
 - Mastodon is handled as a short summary + source link platform, not a full-article mirror
 - the current implementation uses the official Mastodon API
+- on Railway, `MASTODON_ACCESS_TOKEN_B64` is safer than raw `MASTODON_ACCESS_TOKEN` when you want to avoid copy/paste or env formatting issues
 
 ## Deployment Direction
 
@@ -288,6 +293,9 @@ Useful current credential entry points:
   - app list: `https://developer.wordpress.com/apps`
   - app settings page only edits metadata
   - app details page shows `Client ID` and `Client Secret`
+- `Mastodon`
+  - app list: `https://mastodon.social/settings/applications`
+  - app details page shows `Application ID`, `Application secret`, and `Your access token`
 
 ## Debug Checklist
 
@@ -306,3 +314,4 @@ Recommended Railway secret habits:
 - do not paste JSON into single-variable fields
 - do not wrap full values in quotes unless the platform explicitly requires it
 - for secrets with problematic special characters, prefer a base64 env input and decode in app code
+- this repo currently supports base64 env inputs for both `WORDPRESS_ACCESS_TOKEN_B64` and `MASTODON_ACCESS_TOKEN_B64`

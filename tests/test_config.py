@@ -12,3 +12,14 @@ def test_wordpress_access_token_b64_overrides_plain(monkeypatch, tmp_path: Path)
     config = Config.load()
 
     assert config.wordpress_access_token == "b64-token"
+
+
+def test_mastodon_access_token_b64_overrides_plain(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("MASTODON_ACCESS_TOKEN", "plain-token")
+    monkeypatch.setenv("MASTODON_ACCESS_TOKEN_B64", "bWFzdG9kb24tYjY0LXRva2Vu")
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "outputs"))
+
+    config = Config.load()
+
+    assert config.mastodon_access_token == "mastodon-b64-token"
