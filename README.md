@@ -128,6 +128,13 @@ Credential location:
 - use scope `https://www.googleapis.com/auth/blogger`
 - complete the authorization flow and copy the returned `access_token`
 
+Troubleshooting notes:
+
+- if Blogger suddenly reports auth failures after Railway variable edits, check the saved env format first
+- Railway env vars are safest in plain `KEY=value` form, without JSON syntax and without wrapping the whole value in quotes
+- if a token contains unusual special characters and starts behaving inconsistently after copy/paste, regenerate it first, then re-save it carefully in Railway
+- if needed later, Blogger can use the same base64 secret pattern as WordPress, but it is not required right now because the current Blogger flow is already working
+
 ## WordPress.com Setup
 
 Required env vars:
@@ -160,6 +167,19 @@ Credential location:
 - OAuth details page example: `https://developer.wordpress.com/apps/<app-id>/`
 - `Client ID` and `Client Secret` are shown on the app details page, not the settings page
 - exchange them for an `access_token` through `https://public-api.wordpress.com/oauth2/token`
+
+Troubleshooting notes:
+
+- if Railway logs show `WORDPRESS_ACCESS_TOKEN is required for publishing`, the variable was not loaded at runtime even if it appears in the UI
+- search deploy logs for `Runtime config:` first; this shows whether the worker actually read `wordpress_access_token=yes/no`
+- some WordPress.com tokens contain special characters such as `#`, `^`, `@`, `(`, `)`; these can break direct env handling on some platforms
+- on Railway, prefer `WORDPRESS_ACCESS_TOKEN_B64` over raw `WORDPRESS_ACCESS_TOKEN`
+- if WordPress returns `The OAuth2 token is invalid`, verify the token again or generate a fresh one from the same app credentials
+- token validation endpoint:
+  - `https://public-api.wordpress.com/oauth2/token-info?client_id=<client_id>&token=<token>`
+- app-to-token pairing matters: use a token generated from the same `Client ID` and `Client Secret` that the project is documented with
+- if WordPress returns `400 Bad Request`, reduce the payload first and inspect the API response body; tags, categories, or other optional fields may be the cause
+- the current code already retries with a minimal `title/content/status` payload after a WordPress 400 response
 
 ## Mastodon Setup
 
@@ -239,3 +259,21 @@ Useful current credential entry points:
   - app list: `https://developer.wordpress.com/apps`
   - app settings page only edits metadata
   - app details page shows `Client ID` and `Client Secret`
+
+## Debug Checklist
+
+When a platform stops publishing, use this order:
+
+1. check Railway deploy logs for `Runtime config:`
+2. confirm the platform token shows as loaded with `yes`
+3. confirm the site/blog identifier is correct
+4. inspect the first `... delivery failed ...` line for the real API error
+5. if the token contains many special characters, suspect env formatting or encoding first
+6. regenerate the token only after ruling out env formatting issues
+
+Recommended Railway secret habits:
+
+- prefer plain `KEY=value`
+- do not paste JSON into single-variable fields
+- do not wrap full values in quotes unless the platform explicitly requires it
+- for secrets with problematic special characters, prefer a base64 env input and decode in app code

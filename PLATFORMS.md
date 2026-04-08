@@ -12,12 +12,14 @@ This file tracks which external distribution platforms are already wired into `w
 - `Blogger / Blogspot`
   - Type: long-form article
   - Auth: access token
-  - Status: code integrated, waiting for real token setup
+  - Status: live and tested in production
+  - Note: keep Railway env formatting simple; if a future token ever behaves strangely after copy/paste, check env encoding/quoting first
 
 - `WordPress.com`
   - Type: long-form article
-  - Auth: access token
-  - Status: code integrated, waiting for real token setup
+  - Auth: access token or base64-wrapped access token
+  - Status: live and tested in production
+  - Note: Railway is more stable with `WORDPRESS_ACCESS_TOKEN_B64` because some WordPress tokens contain special characters
 
 - `Mastodon`
   - Type: short summary + source link
