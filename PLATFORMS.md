@@ -8,23 +8,51 @@ This file tracks which external distribution platforms are already wired into `w
   - Type: long-form article
   - Auth: API key
   - Status: live and already tested in production
+  - Current target: `https://dev.to/`
+  - Credential entry: `https://dev.to/settings/account`
+  - Main env vars: `DEVTO_API_KEY`, `DEVTO_PUBLISH_STATUS`, `DEVTO_REQUIRE_LLM_FOR_PUBLICATION`
+  - Notes:
+    - strong article adaptation is recommended, not light copy editing
+    - keep it in `draft` until quality looks stable
 
 - `Blogger / Blogspot`
   - Type: long-form article
   - Auth: access token
   - Status: live and tested in production
-  - Note: keep Railway env formatting simple; if a future token ever behaves strangely after copy/paste, check env encoding/quoting first
+  - Current target: `https://wappkit.blogspot.com/`
+  - Credential entry: `https://developers.google.com/oauthplayground/`
+  - Main env vars: `BLOGGER_ACCESS_TOKEN`, `BLOGGER_BLOG_URL`, `BLOGGER_PUBLISH_STATUS`, `BLOGGER_REQUIRE_LLM_FOR_PUBLICATION`
+  - Notes:
+    - keep Railway env formatting simple; if a future token ever behaves strangely after copy/paste, check env encoding or quoting first
+    - current production flow works with raw token input, no extra encoding layer needed right now
 
 - `WordPress.com`
   - Type: long-form article
   - Auth: access token or base64-wrapped access token
   - Status: live and tested in production
-  - Note: Railway is more stable with `WORDPRESS_ACCESS_TOKEN_B64` because some WordPress tokens contain special characters
+  - Current target: `https://blogxblog2.wordpress.com/`
+  - Credential entry:
+    - app list: `https://developer.wordpress.com/apps`
+    - app details page shows `Client ID` and `Client Secret`
+    - token endpoint: `https://public-api.wordpress.com/oauth2/token`
+  - Main env vars: `WORDPRESS_SITE`, `WORDPRESS_ACCESS_TOKEN`, `WORDPRESS_ACCESS_TOKEN_B64`, `WORDPRESS_PUBLISH_STATUS`, `WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION`
+  - Notes:
+    - Railway is more stable with `WORDPRESS_ACCESS_TOKEN_B64` because some WordPress tokens contain special characters
+    - when debugging, search logs for `Runtime config:` before anything else
+    - if WordPress returns `400`, the code already retries with a minimal payload
 
 - `Mastodon`
   - Type: short summary + source link
-  - Auth: access token
-  - Status: code integrated, waiting for real token setup
+  - Auth: access token or base64-wrapped access token
+  - Status: live and tested in production
+  - Current target: `https://mastodon.social/`
+  - Credential entry: `https://mastodon.social/settings/applications`
+  - Main env vars: `MASTODON_BASE_URL`, `MASTODON_ACCESS_TOKEN`, `MASTODON_ACCESS_TOKEN_B64`, `MASTODON_VISIBILITY`, `MASTODON_REQUIRE_LLM_FOR_PUBLICATION`
+  - Notes:
+    - current publishing path works in production
+    - Railway is more stable with `MASTODON_ACCESS_TOKEN_B64` when token copying becomes inconsistent
+    - for early stage use, `MASTODON_REQUIRE_LLM_FOR_PUBLICATION=0` is more practical
+    - Mastodon is intentionally treated as a short social summary platform, not a long-form mirror
 
 ## Evaluated But Not Integrated Yet
 
@@ -34,7 +62,8 @@ This file tracks which external distribution platforms are already wired into `w
 
 - `Tumblr`
   - Possible through the Tumblr API
-  - Not added yet because Blogger / WordPress.com cover the main blog-distribution need first
+  - Official entry point: `https://www.tumblr.com/developers`
+  - Likely next best candidate because it still supports official API-based publishing and fits mixed blog/social distribution
 
 - `LinkedIn`
   - API exists, but publishing is more constrained and less suitable for full-article mirroring
@@ -53,3 +82,4 @@ For Wappkit right now, the most practical publishing stack is:
 2. `Blogger`
 3. `WordPress.com`
 4. `Mastodon`
+5. `Tumblr`
