@@ -43,6 +43,17 @@ class Config:
     blogger_publish_status: str = "draft"
     blogger_default_labels: list[str] | None = None
     blogger_require_llm_for_publication: bool = True
+    wordpress_access_token: str | None = None
+    wordpress_site: str | None = None
+    wordpress_publish_status: str = "draft"
+    wordpress_default_tags: list[str] | None = None
+    wordpress_default_categories: list[str] | None = None
+    wordpress_require_llm_for_publication: bool = True
+    mastodon_base_url: str | None = None
+    mastodon_access_token: str | None = None
+    mastodon_visibility: str = "unlisted"
+    mastodon_language: str = "en"
+    mastodon_require_llm_for_publication: bool = True
     use_public_api_pool: bool = False
     public_api_list_file: Path | None = None
     public_api_list_url: str | None = None
@@ -94,6 +105,14 @@ class Config:
         if blogger_publish_status not in {"draft", "published"}:
             blogger_publish_status = "draft"
 
+        wordpress_publish_status = os.getenv("WORDPRESS_PUBLISH_STATUS", "draft").strip().lower()
+        if wordpress_publish_status not in {"draft", "published"}:
+            wordpress_publish_status = "draft"
+
+        mastodon_visibility = os.getenv("MASTODON_VISIBILITY", "unlisted").strip().lower()
+        if mastodon_visibility not in {"public", "unlisted", "private", "direct"}:
+            mastodon_visibility = "unlisted"
+
         return cls(
             root_dir=root_dir,
             site_url=os.getenv("WAPPKIT_SITE_URL", "https://www.wappkit.com").rstrip("/"),
@@ -121,6 +140,17 @@ class Config:
             blogger_publish_status=blogger_publish_status,
             blogger_default_labels=_split_csv(os.getenv("BLOGGER_DEFAULT_LABELS", "wappkit,blog,software")),
             blogger_require_llm_for_publication=_env_bool("BLOGGER_REQUIRE_LLM_FOR_PUBLICATION", True),
+            wordpress_access_token=os.getenv("WORDPRESS_ACCESS_TOKEN") or None,
+            wordpress_site=os.getenv("WORDPRESS_SITE") or None,
+            wordpress_publish_status=wordpress_publish_status,
+            wordpress_default_tags=_split_csv(os.getenv("WORDPRESS_DEFAULT_TAGS", "wappkit,blog,software")),
+            wordpress_default_categories=_split_csv(os.getenv("WORDPRESS_DEFAULT_CATEGORIES", "Wappkit")),
+            wordpress_require_llm_for_publication=_env_bool("WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION", True),
+            mastodon_base_url=os.getenv("MASTODON_BASE_URL") or None,
+            mastodon_access_token=os.getenv("MASTODON_ACCESS_TOKEN") or None,
+            mastodon_visibility=mastodon_visibility,
+            mastodon_language=os.getenv("MASTODON_LANGUAGE", "en"),
+            mastodon_require_llm_for_publication=_env_bool("MASTODON_REQUIRE_LLM_FOR_PUBLICATION", True),
             use_public_api_pool=_env_bool("USE_PUBLIC_API_POOL", False),
             public_api_list_file=(root_dir / public_api_list_file_raw).resolve() if public_api_list_file_raw else None,
             public_api_list_url=os.getenv("PUBLIC_API_LIST_URL") or None,

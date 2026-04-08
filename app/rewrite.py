@@ -20,5 +20,7 @@ _SPEC.loader.exec_module(_MODULE)
 
 DevtoRewriter = _MODULE.DevtoRewriter
 BloggerRewriter = _MODULE.BloggerRewriter
+WordpressRewriter = _MODULE.WordpressRewriter
+MastodonRewriter = _MODULE.MastodonRewriter
 
-__all__ = ["DevtoRewriter", "BloggerRewriter"]
+__all__ = ["DevtoRewriter", "BloggerRewriter", "WordpressRewriter", "MastodonRewriter"]

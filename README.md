@@ -11,7 +11,11 @@ It does one job:
 
 The first live target is `DEV.to`.
 
-The next integrated target is `Blogger / Blogspot`.
+The next integrated targets are:
+
+- `Blogger / Blogspot`
+- `WordPress.com`
+- `Mastodon`
 
 ## Phase 1 Scope
 
@@ -22,6 +26,8 @@ The next integrated target is `Blogger / Blogspot`.
 - rewrite the article for `DEV.to`
 - publish to `DEV.to` or save a dry-run preview
 - optionally rewrite and publish to `Blogger`
+- optionally rewrite and publish to `WordPress.com`
+- optionally rewrite and publish short social posts to `Mastodon`
 - persist delivery history in SQLite
 
 ## Rewrite Routing
@@ -41,6 +47,8 @@ Current publication policy:
 - fallback rewrites are safety drafts only
 - if `DEVTO_PUBLISH_STATUS=published`, the worker still forces `fallback` rewrites to stay draft unless you disable `DEVTO_REQUIRE_LLM_FOR_PUBLICATION`
 - Blogger follows the same safety rule through `BLOGGER_REQUIRE_LLM_FOR_PUBLICATION`
+- WordPress.com follows the same safety rule through `WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION`
+- Mastodon can publish summaries through its API and can also require LLM rewrites through `MASTODON_REQUIRE_LLM_FOR_PUBLICATION`
 
 Supported public pool inputs:
 
@@ -71,6 +79,8 @@ python -m app.main run-once --dry-run
 python -m app.main run-once --slug choosing-a-clean-tool-structure-for-wappkit --dry-run
 python -m app.main run-blogger-once --dry-run
 python -m app.main run-blogger-once --slug choosing-a-clean-tool-structure-for-wappkit --dry-run
+python -m app.main run-wordpress-once --dry-run
+python -m app.main run-mastodon-once --dry-run
 ```
 
 ## Blogger Setup
@@ -94,6 +104,45 @@ Notes:
 - the current implementation uses the official Blogger API
 - `BLOGGER_BLOG_URL` can be a domain like `wappkit.blogspot.com` or a full URL
 - draft/public behavior mirrors the DEV.to safety policy
+
+## WordPress.com Setup
+
+Required env vars:
+
+- `WORDPRESS_ACCESS_TOKEN`
+- `WORDPRESS_SITE`
+
+Recommended safety env vars:
+
+```bash
+WORDPRESS_PUBLISH_STATUS=draft
+WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION=1
+```
+
+Notes:
+
+- use the WordPress.com site identifier such as `blogxblog2.wordpress.com`
+- the current implementation uses the official WordPress.com REST API
+- draft/public behavior mirrors the DEV.to safety policy
+
+## Mastodon Setup
+
+Required env vars:
+
+- `MASTODON_BASE_URL`
+- `MASTODON_ACCESS_TOKEN`
+
+Recommended safety env vars:
+
+```bash
+MASTODON_VISIBILITY=unlisted
+MASTODON_REQUIRE_LLM_FOR_PUBLICATION=1
+```
+
+Notes:
+
+- Mastodon is handled as a short summary + source link platform, not a full-article mirror
+- the current implementation uses the official Mastodon API
 
 ## Deployment Direction
 
