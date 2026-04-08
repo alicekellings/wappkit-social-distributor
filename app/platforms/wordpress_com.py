@@ -20,15 +20,25 @@ class WordpressComPublisher:
         payload = {
             "title": rewritten.title,
             "content": self._markdown_to_html(rewritten.body_markdown),
-            "excerpt": rewritten.description[:200],
             "status": status,
         }
+        excerpt = (rewritten.description or "").strip()
+        if excerpt:
+            payload["excerpt"] = excerpt[:200]
         if rewritten.tags:
             payload["tags"] = ",".join(rewritten.tags[:10])
         categories = self.config.wordpress_default_categories or []
         if categories:
             payload["categories"] = ",".join(categories[:10])
         return payload
+
+    def build_minimal_payload(self, rewritten: RewrittenArticle, source: SourceArticle) -> dict:
+        payload = self.build_payload(rewritten, source)
+        return {
+            "title": payload["title"],
+            "content": payload["content"],
+            "status": payload["status"],
+        }
 
     def publish(self, rewritten: RewrittenArticle, source: SourceArticle) -> PublishResult:
         if not self.config.wordpress_access_token:
@@ -37,13 +47,12 @@ class WordpressComPublisher:
             raise ValueError("WORDPRESS_SITE is required for publishing.")
 
         payload = self.build_payload(rewritten, source)
-        response = requests.post(
-            f"{self.api_root}/sites/{self.config.wordpress_site}/posts/new",
-            data=payload,
-            headers=self._headers(),
-            timeout=self.config.request_timeout_seconds,
-        )
-        response.raise_for_status()
+        response = self._post_payload(payload)
+        if response.status_code >= 400:
+            minimal_payload = self.build_minimal_payload(rewritten, source)
+            if minimal_payload != payload:
+                response = self._post_payload(minimal_payload)
+        self._raise_for_status_with_details(response)
         data = response.json()
 
         status = str(data.get("status") or "").strip().lower()
@@ -68,6 +77,36 @@ class WordpressComPublisher:
             "Authorization": f"Bearer {self.config.wordpress_access_token}",
             "Accept": "application/json",
         }
+
+    def _post_payload(self, payload: dict) -> requests.Response:
+        return requests.post(
+            f"{self.api_root}/sites/{self.config.wordpress_site}/posts/new",
+            data=payload,
+            headers=self._headers(),
+            timeout=self.config.request_timeout_seconds,
+        )
+
+    def _raise_for_status_with_details(self, response: requests.Response) -> None:
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            detail = self._extract_error_detail(response)
+            if detail:
+                raise requests.HTTPError(f"{exc} | response={detail}", response=response) from exc
+            raise
+
+    def _extract_error_detail(self, response: requests.Response) -> str:
+        try:
+            data = response.json()
+        except ValueError:
+            return (response.text or "").strip()[:500]
+        if isinstance(data, dict):
+            for key in ("message", "error", "error_description"):
+                value = data.get(key)
+                if value:
+                    return str(value)[:500]
+            return json.dumps(data, ensure_ascii=False)[:500]
+        return str(data)[:500]
 
     def _should_publish_publicly(self, rewritten: RewrittenArticle) -> bool:
         if self.config.wordpress_publish_status != "published":

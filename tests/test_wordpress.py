@@ -1,6 +1,7 @@
 from app.config import Config
 from app.models import ArticleCandidate, RewrittenArticle, SourceArticle
 from app.platforms.wordpress_com import WordpressComPublisher
+import requests
 
 
 def build_config(tmp_path):
@@ -85,3 +86,58 @@ def test_wordpress_llm_rewrite_allows_publish(tmp_path) -> None:
     payload = publisher.build_payload(rewritten, source)
 
     assert payload["status"] == "publish"
+
+
+def test_wordpress_retries_with_minimal_payload_on_bad_request(tmp_path, monkeypatch) -> None:
+    config = build_config(tmp_path)
+    publisher = WordpressComPublisher(config)
+    source = SourceArticle(
+        candidate=ArticleCandidate(slug="demo", url="https://www.wappkit.com/blog/demo"),
+        title="Demo",
+        description="Demo description",
+        markdown="Hello",
+        canonical_url="https://www.wappkit.com/blog/demo",
+    )
+    rewritten = RewrittenArticle(
+        title="Demo",
+        description="Demo description",
+        body_markdown="Hello",
+        tags=["wappkit"],
+        rewrite_source="fallback",
+        rewrite_strength="minimal",
+    )
+
+    calls = []
+
+    class DummyResponse:
+        def __init__(self, status_code: int, data: dict, text: str = "") -> None:
+            self.status_code = status_code
+            self._data = data
+            self.text = text
+
+        def json(self):
+            return self._data
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests.HTTPError("400 Client Error: Bad Request for url: test", response=self)
+
+    def fake_post(url, data, headers, timeout):
+        calls.append(data.copy())
+        if len(calls) == 1:
+            return DummyResponse(400, {"message": "Invalid categories"})
+        return DummyResponse(200, {"ID": 123, "status": "draft", "URL": "https://example.wordpress.com/demo"})
+
+    monkeypatch.setattr("app.platforms.wordpress_com.requests.post", fake_post)
+
+    result = publisher.publish(rewritten, source)
+
+    assert len(calls) == 2
+    assert "categories" in calls[0]
+    assert "tags" in calls[0]
+    assert calls[1] == {
+        "title": "Demo",
+        "content": "<p>Hello</p>",
+        "status": "draft",
+    }
+    assert result.is_draft is True
