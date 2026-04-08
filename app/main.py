@@ -43,6 +43,11 @@ def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
             rewritten = rewriter.rewrite(source)
             if rewriter.last_provider_label:
                 click.echo(f"Rewrite model: {rewriter.last_provider_label}")
+            if rewritten.rewrite_source != "llm":
+                click.secho(
+                    "Rewrite fallback detected; DEV.to delivery will stay in draft mode for safety.",
+                    fg="yellow",
+                )
             if dry_run:
                 preview_path = publisher.save_preview(
                     rewritten,

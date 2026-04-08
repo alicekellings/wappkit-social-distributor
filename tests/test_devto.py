@@ -21,6 +21,7 @@ def build_config(tmp_path):
         devto_api_key="test-key",
         devto_publish_status="draft",
         devto_default_tags=["wappkit", "software", "saas"],
+        devto_require_llm_for_publication=True,
     )
 
 
@@ -39,9 +40,61 @@ def test_build_payload_marks_draft_mode(tmp_path) -> None:
         description="Demo description",
         body_markdown="Hello",
         tags=["wappkit"],
+        rewrite_source="fallback",
+        rewrite_strength="minimal",
     )
 
     payload = publisher.build_payload(rewritten, source)
 
     assert payload["article"]["published"] is False
     assert payload["article"]["canonical_url"] == "https://www.wappkit.com/blog/demo"
+
+
+def test_build_payload_allows_publication_for_llm_rewrite(tmp_path) -> None:
+    config = build_config(tmp_path)
+    config.devto_publish_status = "published"
+    publisher = DevtoPublisher(config)
+    source = SourceArticle(
+        candidate=ArticleCandidate(slug="demo", url="https://www.wappkit.com/blog/demo"),
+        title="Demo",
+        description="Demo description",
+        markdown="Hello",
+        canonical_url="https://www.wappkit.com/blog/demo",
+    )
+    rewritten = RewrittenArticle(
+        title="Demo",
+        description="Demo description",
+        body_markdown="Hello",
+        tags=["wappkit"],
+        rewrite_source="llm",
+        rewrite_strength="moderate",
+    )
+
+    payload = publisher.build_payload(rewritten, source)
+
+    assert payload["article"]["published"] is True
+
+
+def test_build_payload_forces_draft_when_fallback_rewrite(tmp_path) -> None:
+    config = build_config(tmp_path)
+    config.devto_publish_status = "published"
+    publisher = DevtoPublisher(config)
+    source = SourceArticle(
+        candidate=ArticleCandidate(slug="demo", url="https://www.wappkit.com/blog/demo"),
+        title="Demo",
+        description="Demo description",
+        markdown="Hello",
+        canonical_url="https://www.wappkit.com/blog/demo",
+    )
+    rewritten = RewrittenArticle(
+        title="Demo",
+        description="Demo description",
+        body_markdown="Hello",
+        tags=["wappkit"],
+        rewrite_source="fallback",
+        rewrite_strength="minimal",
+    )
+
+    payload = publisher.build_payload(rewritten, source)
+
+    assert payload["article"]["published"] is False

@@ -15,11 +15,12 @@ class DevtoPublisher:
         self.api_url = "https://dev.to/api/articles"
 
     def build_payload(self, rewritten: RewrittenArticle, source: SourceArticle) -> dict:
+        should_publish = self._should_publish_publicly(rewritten)
         payload = {
             "article": {
                 "title": rewritten.title,
                 "body_markdown": rewritten.body_markdown,
-                "published": self.config.devto_publish_status == "published",
+                "published": should_publish,
                 "tags": rewritten.tags[:4],
                 "description": rewritten.description[:200],
                 "canonical_url": source.canonical_url,
@@ -70,3 +71,10 @@ class DevtoPublisher:
         preview_path.write_text(rewritten.body_markdown, encoding="utf-8")
         payload_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return preview_path
+
+    def _should_publish_publicly(self, rewritten: RewrittenArticle) -> bool:
+        if self.config.devto_publish_status != "published":
+            return False
+        if self.config.devto_require_llm_for_publication and rewritten.rewrite_source != "llm":
+            return False
+        return True

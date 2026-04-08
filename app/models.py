@@ -31,6 +31,8 @@ class RewrittenArticle:
     description: str
     body_markdown: str
     tags: list[str]
+    rewrite_source: str = "fallback"
+    rewrite_strength: str = "minimal"
 
 
 @dataclass(slots=True)

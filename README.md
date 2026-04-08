@@ -32,6 +32,12 @@ The `DEV.to` rewrite flow now supports a reusable LLM routing layer:
 
 This routing logic lives in `app/llm_router.py` so future platforms can reuse it.
 
+Current publication policy:
+
+- LLM rewrites aim for a moderate DEV.to adaptation, not a mirror copy
+- fallback rewrites are safety drafts only
+- if `DEVTO_PUBLISH_STATUS=published`, the worker still forces `fallback` rewrites to stay draft unless you disable `DEVTO_REQUIRE_LLM_FOR_PUBLICATION`
+
 Supported public pool inputs:
 
 - `PUBLIC_API_LIST_FILE`
@@ -81,6 +87,7 @@ Recommended Railway setup:
 - start command: `python -m app.main worker`
 - fill secret env vars in Railway:
   - `DEVTO_API_KEY`
+  - `DEVTO_REQUIRE_LLM_FOR_PUBLICATION=1`
   - `USE_PUBLIC_API_POOL=1` if you want public GPT-compatible endpoints to be probed first
   - one of `PUBLIC_API_LIST_TEXT`, `PUBLIC_API_LIST_URL`, or `PUBLIC_API_LIST_FILE`
   - optional fallback vars such as `FALLBACK_GROQ_*`, `FALLBACK_NVIDIA_*`, `FALLBACK_CLOUDFLARE_*`
@@ -97,4 +104,10 @@ After verifying the output, switch it to:
 
 ```bash
 DEVTO_PUBLISH_STATUS=published
+```
+
+Recommended safety setting:
+
+```bash
+DEVTO_REQUIRE_LLM_FOR_PUBLICATION=1
 ```

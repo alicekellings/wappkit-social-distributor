@@ -33,15 +33,19 @@ Rules:
 - Make this clearly feel like a DEV.to-native version, not a copy-paste mirror.
 - Keep the article human and practical.
 - Preserve the real topic and useful details.
-- Rewrite the title so it feels natural on DEV.to while staying faithful to the topic.
-- Rewrite the opening section with a fresh angle and community-style tone.
-- Keep the structure recognizable, but lightly rewrite headings and paragraphs so the wording is not identical.
+- Rewrite the title so it feels natural on DEV.to while staying faithful to the topic. Do not reuse the source title verbatim.
+- Rewrite the opening 2-4 paragraphs with a fresh angle and community-style tone.
+- Rewrite at least 3 section headings when the article is long enough to support that.
+- Keep the structure recognizable, but rewrite paragraphs so the wording is not too close to the source.
 - Remove obvious site-only CTA wording if it sounds too salesy.
+- Cut or soften product-led wording unless it is necessary for context.
 - Keep a short note near the top that this version was originally published on Wappkit.
 - Keep a source link back to Wappkit near the end.
+- Add one short DEV.to-native section near the end, such as "Practical takeaway", "What I would do", or "Key lesson", when it fits naturally.
 - Keep markdown formatting.
 - Do not invent facts.
-- Aim for a light rewrite, not a total rewrite.
+- Avoid copying long verbatim passages from the source unless they are necessary quotes or exact labels.
+- Aim for a moderate platform adaptation, not a total rewrite.
 - Output valid JSON only.
 
 JSON schema:
@@ -73,6 +77,8 @@ Original markdown:
                 article.canonical_url,
             ),
             tags=_sanitize_tags([str(tag) for tag in payload.get("tags", [])], article, self.config),
+            rewrite_source="llm",
+            rewrite_strength="moderate",
         )
 
     def _fallback_rewrite(self, article: SourceArticle) -> RewrittenArticle:
@@ -92,6 +98,8 @@ Original markdown:
             description=(article.description or article.title).strip()[:200],
             body_markdown=body,
             tags=_sanitize_tags(article.tags + article.categories, article, self.config),
+            rewrite_source="fallback",
+            rewrite_strength="minimal",
         )
 
 

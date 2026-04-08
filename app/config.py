@@ -36,6 +36,7 @@ class Config:
     devto_api_key: str | None
     devto_publish_status: str
     devto_default_tags: list[str]
+    devto_require_llm_for_publication: bool = True
     use_public_api_pool: bool = False
     public_api_list_file: Path | None = None
     public_api_list_url: str | None = None
@@ -103,6 +104,7 @@ class Config:
             devto_api_key=os.getenv("DEVTO_API_KEY") or None,
             devto_publish_status=publish_status,
             devto_default_tags=_split_csv(os.getenv("DEVTO_DEFAULT_TAGS", "wappkit,software,productivity,saas")),
+            devto_require_llm_for_publication=_env_bool("DEVTO_REQUIRE_LLM_FOR_PUBLICATION", True),
             use_public_api_pool=_env_bool("USE_PUBLIC_API_POOL", False),
             public_api_list_file=(root_dir / public_api_list_file_raw).resolve() if public_api_list_file_raw else None,
             public_api_list_url=os.getenv("PUBLIC_API_LIST_URL") or None,

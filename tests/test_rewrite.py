@@ -23,6 +23,7 @@ def build_config(tmp_path: Path) -> Config:
         devto_api_key=None,
         devto_publish_status="draft",
         devto_default_tags=["wappkit", "software", "saas"],
+        devto_require_llm_for_publication=True,
     )
 
 
@@ -46,6 +47,8 @@ def test_fallback_rewrite_adds_origin_note_and_strips_duplicate_h1(tmp_path: Pat
     assert "# Demo Post" not in rewritten.body_markdown
     assert "DEV.to-friendly version" in rewritten.body_markdown
     assert rewritten.tags
+    assert rewritten.rewrite_source == "fallback"
+    assert rewritten.rewrite_strength == "minimal"
 
 
 def test_fallback_rewrite_strips_multiple_leading_h1_blocks(tmp_path: Path) -> None:
@@ -65,3 +68,4 @@ def test_fallback_rewrite_strips_multiple_leading_h1_blocks(tmp_path: Path) -> N
 
     assert rewritten.body_markdown.count("# Demo Post") == 0
     assert "Body paragraph." in rewritten.body_markdown
+    assert rewritten.rewrite_source == "fallback"
