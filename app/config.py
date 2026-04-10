@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,43 @@ def _env_secret_with_b64(plain_name: str, b64_name: str) -> str | None:
     return os.getenv(plain_name) or None
 
 
+def _load_secret_config(root_dir: Path) -> None:
+    configured_path = os.getenv("WAPPKIT_CONFIG_FILE")
+    candidates = []
+    if configured_path:
+        candidates.append(Path(configured_path))
+    candidates.extend(
+        [
+            root_dir / "config.secrets.json",
+            root_dir / "local-secrets" / "wappkit-secrets.json",
+            Path("/data/wappkit-secrets.json"),
+        ]
+    )
+
+    chosen_path = next((path for path in candidates if path.exists()), None)
+    if not chosen_path:
+        return
+
+    try:
+        raw = json.loads(chosen_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return
+
+    if not isinstance(raw, dict):
+        return
+
+    payload = raw.get("env") if isinstance(raw.get("env"), dict) else raw
+    for key, value in payload.items():
+        if not isinstance(key, str):
+            continue
+        if isinstance(value, bool):
+            os.environ[key] = "1" if value else "0"
+        elif value is None:
+            continue
+        else:
+            os.environ[key] = str(value)
+
+
 @dataclass(slots=True)
 class Config:
     root_dir: Path
@@ -51,6 +89,9 @@ class Config:
     delivery_platforms: list[str] | None = None
     devto_require_llm_for_publication: bool = True
     blogger_access_token: str | None = None
+    blogger_client_id: str | None = None
+    blogger_client_secret: str | None = None
+    blogger_refresh_token: str | None = None
     blogger_blog_id: str | None = None
     blogger_blog_url: str | None = None
     blogger_publish_status: str = "draft"
@@ -104,6 +145,7 @@ class Config:
     def load(cls) -> "Config":
         root_dir = Path(__file__).resolve().parents[1]
         load_dotenv(root_dir / ".env")
+        _load_secret_config(root_dir)
 
         data_dir_raw = os.getenv("DATA_DIR", "./data")
         outputs_dir_raw = os.getenv("OUTPUTS_DIR", "./outputs")
@@ -160,7 +202,10 @@ class Config:
             devto_publish_status=publish_status,
             devto_default_tags=_split_csv(os.getenv("DEVTO_DEFAULT_TAGS", "wappkit,software,productivity,saas")),
             devto_require_llm_for_publication=_env_bool("DEVTO_REQUIRE_LLM_FOR_PUBLICATION", True),
-            blogger_access_token=os.getenv("BLOGGER_ACCESS_TOKEN") or None,
+            blogger_access_token=_env_secret_with_b64("BLOGGER_ACCESS_TOKEN", "BLOGGER_ACCESS_TOKEN_B64"),
+            blogger_client_id=os.getenv("BLOGGER_CLIENT_ID") or None,
+            blogger_client_secret=os.getenv("BLOGGER_CLIENT_SECRET") or None,
+            blogger_refresh_token=_env_secret_with_b64("BLOGGER_REFRESH_TOKEN", "BLOGGER_REFRESH_TOKEN_B64"),
             blogger_blog_id=os.getenv("BLOGGER_BLOG_ID") or None,
             blogger_blog_url=os.getenv("BLOGGER_BLOG_URL") or None,
             blogger_publish_status=blogger_publish_status,

@@ -9,6 +9,8 @@ It does one job:
 3. publish them platform by platform
 4. keep delivery state in a persistent data directory
 
+The project can read secrets from a single JSON file, so you do not have to keep every token in Railway variables.
+
 The first live target is `DEV.to`.
 
 The next integrated targets are:
@@ -144,6 +146,12 @@ Required env vars:
 - `BLOGGER_ACCESS_TOKEN`
 - one of `BLOGGER_BLOG_ID` or `BLOGGER_BLOG_URL`
 
+Optional long-term refresh vars:
+
+- `BLOGGER_CLIENT_ID`
+- `BLOGGER_CLIENT_SECRET`
+- `BLOGGER_REFRESH_TOKEN`
+
 Recommended safety env vars:
 
 ```bash
@@ -164,13 +172,21 @@ Credential location:
 - click the gear icon and enable your own OAuth credentials
 - use scope `https://www.googleapis.com/auth/blogger`
 - complete the authorization flow and copy the returned `access_token`
+- if you want automatic refresh later, also keep the `refresh_token`
+- Google token endpoint: `https://oauth2.googleapis.com/token`
+
+Recommended practical setup:
+
+- short-term: keep only `BLOGGER_ACCESS_TOKEN` in your single config file
+- long-term: add `BLOGGER_CLIENT_ID`, `BLOGGER_CLIENT_SECRET`, and `BLOGGER_REFRESH_TOKEN` to the same file so the worker can refresh automatically after a `401`
 
 Troubleshooting notes:
 
 - if Blogger suddenly reports auth failures after Railway variable edits, check the saved env format first
 - Railway env vars are safest in plain `KEY=value` form, without JSON syntax and without wrapping the whole value in quotes
 - if a token contains unusual special characters and starts behaving inconsistently after copy/paste, regenerate it first, then re-save it carefully in Railway
-- if needed later, Blogger can use the same base64 secret pattern as WordPress, but it is not required right now because the current Blogger flow is already working
+- if you use the single-file config path, Railway variable formatting issues disappear entirely
+- the current code now supports `BLOGGER_ACCESS_TOKEN_B64` and `BLOGGER_REFRESH_TOKEN_B64` too, but plain values in the secrets file are simpler to manage
 
 ## WordPress.com Setup
 
@@ -273,6 +289,15 @@ Credential location:
 - OAuth2 authorize URL: `https://www.tumblr.com/oauth2/authorize`
 - OAuth2 token URL: `https://api.tumblr.com/v2/oauth2/token`
 - after OAuth2 exchange, keep both the `access_token` and `refresh_token`
+- current app redirect URI: `https://www.wappkit.com/`
+
+Quick Tumblr auth flow:
+
+1. open the Tumblr authorize URL with your `client_id`, `redirect_uri`, and `scope=basic write`
+2. approve access and copy the `code` from the redirect URL
+3. exchange the `code` at `https://api.tumblr.com/v2/oauth2/token`
+4. save the returned `access_token` and `refresh_token`
+5. if Railway variable handling becomes annoying, place them in the single secrets file instead
 
 ## Deployment Direction
 
@@ -300,6 +325,30 @@ Recommended Railway setup:
   - optional fallback vars such as `FALLBACK_GROQ_*`, `FALLBACK_NVIDIA_*`, `FALLBACK_CLOUDFLARE_*`
 
 The existing [render.yaml](./render.yaml) can stay as a fallback reference, but Railway is the current live path.
+
+## Single Secrets File
+
+If Railway variables become too noisy, use a single JSON file instead.
+
+Supported lookup order:
+
+1. path from `WAPPKIT_CONFIG_FILE` if you set it
+2. `[config.secrets.json](./config.secrets.json)` in the repo root
+3. `local-secrets/wappkit-secrets.json`
+4. `/data/wappkit-secrets.json`
+
+Recommended live path on Railway:
+
+- `/data/wappkit-secrets.json`
+
+You can start from [wappkit-secrets.example.json](./wappkit-secrets.example.json).
+
+Notes:
+
+- the file can contain the same names as env vars, for example `BLOGGER_ACCESS_TOKEN`, `TUMBLR_ACCESS_TOKEN_B64`, `WORDPRESS_ACCESS_TOKEN_B64`
+- if the file exists, its values are loaded into runtime config automatically
+- this avoids large variable lists in the Railway UI
+- this is only light obfuscation if you use `*_B64`; it is not real encryption
 
 If you want the first few runs to stay safe, keep:
 

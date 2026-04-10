@@ -23,6 +23,9 @@ def build_config(tmp_path):
         devto_default_tags=["wappkit", "software", "saas"],
         devto_require_llm_for_publication=True,
         blogger_access_token="test-token",
+        blogger_client_id="client-id",
+        blogger_client_secret="client-secret",
+        blogger_refresh_token="refresh-token",
         blogger_blog_id="123456",
         blogger_blog_url="https://wappkit.blogspot.com/",
         blogger_publish_status="draft",
@@ -105,3 +108,58 @@ def test_llm_rewrite_allows_blogger_publication(tmp_path) -> None:
 
 def test_normalize_blog_url_supports_domain_only() -> None:
     assert _normalize_blog_url("wappkit.blogspot.com") == "https://wappkit.blogspot.com/"
+
+
+def test_blogger_refreshes_token_after_unauthorized(tmp_path, monkeypatch) -> None:
+    config = build_config(tmp_path)
+    publisher = BloggerPublisher(config)
+    source = SourceArticle(
+        candidate=ArticleCandidate(slug="demo", url="https://www.wappkit.com/blog/demo"),
+        title="Demo",
+        description="Demo description",
+        markdown="Hello",
+        canonical_url="https://www.wappkit.com/blog/demo",
+    )
+    rewritten = RewrittenArticle(
+        title="Demo",
+        description="Demo description",
+        body_markdown="Hello",
+        tags=["wappkit"],
+        rewrite_source="llm",
+        rewrite_strength="moderate",
+    )
+
+    calls = []
+
+    class DummyResponse:
+        def __init__(self, status_code: int, data: dict) -> None:
+            self.status_code = status_code
+            self._data = data
+            self.text = str(data)
+
+        def json(self):
+            return self._data
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise Exception(f"{self.status_code} error")
+
+    def fake_request(method, url, headers=None, timeout=None, **kwargs):
+        calls.append({"method": method, "url": url, "headers": headers, "kwargs": kwargs})
+        if url.endswith("/blogs/123456/posts") and len([c for c in calls if c["url"].endswith("/blogs/123456/posts")]) == 1:
+            return DummyResponse(401, {"error": {"message": "Invalid Credentials"}})
+        return DummyResponse(200, {"id": "123", "url": "https://wappkit.blogspot.com/2026/04/demo.html"})
+
+    def fake_post(url, data=None, timeout=None, **kwargs):
+        calls.append({"method": "post", "url": url, "data": data})
+        return DummyResponse(200, {"access_token": "new-access-token", "expires_in": 3600, "token_type": "Bearer"})
+
+    monkeypatch.setattr("app.platforms.blogger.requests.request", fake_request)
+    monkeypatch.setattr("app.platforms.blogger.requests.post", fake_post)
+
+    result = publisher.publish(rewritten, source)
+
+    assert result.external_id == "123"
+    assert any(call["url"] == "https://oauth2.googleapis.com/token" for call in calls)
+    post_calls = [call for call in calls if call["url"].endswith("/blogs/123456/posts")]
+    assert post_calls[-1]["headers"]["Authorization"] == "Bearer new-access-token"

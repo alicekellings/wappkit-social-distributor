@@ -17,14 +17,17 @@ This file tracks which external distribution platforms are already wired into `w
 
 - `Blogger / Blogspot`
   - Type: long-form article
-  - Auth: access token
-  - Status: live and tested in production
+  - Auth: access token, with optional refresh-capable OAuth credentials
+  - Status: publishing code live; current production token needs renewal
   - Current target: `https://wappkit.blogspot.com/`
   - Credential entry: `https://developers.google.com/oauthplayground/`
   - Main env vars: `BLOGGER_ACCESS_TOKEN`, `BLOGGER_BLOG_URL`, `BLOGGER_PUBLISH_STATUS`, `BLOGGER_REQUIRE_LLM_FOR_PUBLICATION`
+  - Optional long-term vars: `BLOGGER_CLIENT_ID`, `BLOGGER_CLIENT_SECRET`, `BLOGGER_REFRESH_TOKEN`
   - Notes:
-    - keep Railway env formatting simple; if a future token ever behaves strangely after copy/paste, check env encoding or quoting first
-    - current production flow works with raw token input, no extra encoding layer needed right now
+    - current `BLOGGER_ACCESS_TOKEN` was verified to be expired with a real `401 Invalid Credentials`
+    - for quick recovery, renew `BLOGGER_ACCESS_TOKEN`
+    - for long-term stability, keep `BLOGGER_CLIENT_ID`, `BLOGGER_CLIENT_SECRET`, and `BLOGGER_REFRESH_TOKEN` in the single secrets file so the worker can auto-refresh
+    - if you use the single secrets file, you do not need to manage a pile of Blogger fields in Railway UI
 
 - `WordPress.com`
   - Type: long-form article
@@ -57,7 +60,7 @@ This file tracks which external distribution platforms are already wired into `w
 - `Tumblr`
   - Type: adapted blog draft / curated note
   - Auth: OAuth2 access token + refresh token
-  - Status: code integrated and locally verified with a real draft publish
+  - Status: live and verified with a real draft publish in Railway
   - Current target: `https://myawesomeblogs.tumblr.com/`
   - Credential entry:
     - app list: `https://www.tumblr.com/oauth/apps`
@@ -77,6 +80,7 @@ This file tracks which external distribution platforms are already wired into `w
     - current implementation automatically refreshes the access token after a `401`
     - blog identifier can be `myawesomeblogs` or `myawesomeblogs.tumblr.com`
     - Railway is safer with the `B64` token variants
+    - current live result was `Draft created on Tumblr`, so the publication chain is already confirmed working
 
 ## Evaluated But Not Integrated Yet
 

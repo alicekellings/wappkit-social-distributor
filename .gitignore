@@ -1,5 +1,6 @@
 .env
 .env.*.local
+config.secrets.json
 __pycache__/
 .pytest_cache/
 data/
