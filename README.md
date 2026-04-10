@@ -293,11 +293,23 @@ Credential location:
 
 Quick Tumblr auth flow:
 
-1. open the Tumblr authorize URL with your `client_id`, `redirect_uri`, and `scope=basic write`
+1. open the Tumblr authorize URL with your `client_id`, `redirect_uri`, and `scope=basic write offline_access`
 2. approve access and copy the `code` from the redirect URL
 3. exchange the `code` at `https://api.tumblr.com/v2/oauth2/token`
 4. save the returned `access_token` and `refresh_token`
 5. if Railway variable handling becomes annoying, place them in the single secrets file instead
+
+Important stability note:
+
+- Tumblr only becomes refreshable when the authorize step requests `offline_access`
+- if you authorize with only `basic write`, you may get a short-lived `access_token` without a usable `refresh_token`
+- use the built-in helper command to avoid hand-building the wrong URL:
+
+```bash
+python -m app.main tumblr-auth-url
+python -m app.main tumblr-exchange-code --code <code>
+python -m app.main tumblr-refresh-token
+```
 
 ## Deployment Direction
 

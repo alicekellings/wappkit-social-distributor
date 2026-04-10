@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import click
 
-from app.config import Config
+from app.config import Config, resolve_secret_config_path
 from app.discovery import discover_articles, get_candidate_by_slug
 from app.platforms.blogger import BloggerPublisher
 from app.platforms.devto import DevtoPublisher
@@ -14,6 +15,14 @@ from app.platforms.wordpress_com import WordpressComPublisher
 from app.rewrite import BloggerRewriter, DevtoRewriter, MastodonRewriter, TumblrRewriter, WordpressRewriter
 from app.source_loader import load_source_article
 from app.store import DeliveryStore
+from app.tumblr_oauth import (
+    DEFAULT_SCOPE,
+    build_authorize_url,
+    exchange_code_for_tokens,
+    refresh_tokens,
+    save_tumblr_tokens_to_config,
+    verify_access_token,
+)
 
 
 SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr")
@@ -467,6 +476,93 @@ def run_tumblr_once_command(slug: str | None, dry_run: bool) -> None:
     config = Config.load()
     processed = run_tumblr_once(config, slug=slug, dry_run=dry_run)
     click.echo(f"Processed {processed} article(s).")
+
+
+@cli.command("tumblr-auth-url")
+@click.option("--redirect-uri", default="https://www.wappkit.com/", show_default=True, help="OAuth redirect URI.")
+@click.option("--state", default="wappkit_tumblr_auth", show_default=True, help="Opaque state string.")
+@click.option("--scope", default=DEFAULT_SCOPE, show_default=True, help="Tumblr OAuth scopes.")
+def tumblr_auth_url_command(redirect_uri: str, state: str, scope: str) -> None:
+    config = Config.load()
+    if not config.tumblr_client_id:
+        raise click.ClickException("TUMBLR_CLIENT_ID is required to build the Tumblr authorize URL.")
+    click.echo(build_authorize_url(config.tumblr_client_id, redirect_uri, state, scope))
+
+
+@cli.command("tumblr-exchange-code")
+@click.option("--code", required=True, help="Authorization code returned by Tumblr.")
+@click.option("--redirect-uri", default="https://www.wappkit.com/", show_default=True, help="OAuth redirect URI.")
+@click.option("--config-path", default=None, help="Optional target secrets file path.")
+def tumblr_exchange_code_command(code: str, redirect_uri: str, config_path: str | None) -> None:
+    config = Config.load()
+    if not config.tumblr_client_id or not config.tumblr_client_secret:
+        raise click.ClickException("TUMBLR_CLIENT_ID and TUMBLR_CLIENT_SECRET are required.")
+
+    token_data = exchange_code_for_tokens(
+        client_id=config.tumblr_client_id,
+        client_secret=config.tumblr_client_secret,
+        redirect_uri=redirect_uri,
+        code=code,
+        timeout=config.request_timeout_seconds,
+    )
+    access_token = str(token_data.get("access_token") or "").strip()
+    refresh_token = str(token_data.get("refresh_token") or "").strip() or None
+    if not access_token:
+        raise click.ClickException("Tumblr returned no access_token.")
+
+    info = verify_access_token(access_token, timeout=config.request_timeout_seconds)
+    user_name = (
+        (((info.get("response") or {}).get("user") or {}).get("name"))
+        or "unknown"
+    )
+    target_path = Path(config_path) if config_path else resolve_secret_config_path(config.root_dir)
+    save_tumblr_tokens_to_config(
+        target_path,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        client_id=config.tumblr_client_id,
+        client_secret=config.tumblr_client_secret,
+        blog_identifier=config.tumblr_blog_identifier,
+    )
+    click.echo(f"Tumblr token exchange succeeded. user={user_name}")
+    click.echo(f"refresh_token_returned={'yes' if bool(refresh_token) else 'no'}")
+    click.echo(f"saved_to={target_path}")
+
+
+@cli.command("tumblr-refresh-token")
+@click.option("--config-path", default=None, help="Optional target secrets file path.")
+def tumblr_refresh_token_command(config_path: str | None) -> None:
+    config = Config.load()
+    if not config.tumblr_client_id or not config.tumblr_client_secret or not config.tumblr_refresh_token:
+        raise click.ClickException("TUMBLR_CLIENT_ID, TUMBLR_CLIENT_SECRET, and TUMBLR_REFRESH_TOKEN are required.")
+
+    token_data = refresh_tokens(
+        client_id=config.tumblr_client_id,
+        client_secret=config.tumblr_client_secret,
+        refresh_token=config.tumblr_refresh_token,
+        timeout=config.request_timeout_seconds,
+    )
+    access_token = str(token_data.get("access_token") or "").strip()
+    refresh_token = str(token_data.get("refresh_token") or "").strip() or config.tumblr_refresh_token
+    if not access_token:
+        raise click.ClickException("Tumblr refresh returned no access_token.")
+
+    info = verify_access_token(access_token, timeout=config.request_timeout_seconds)
+    user_name = (
+        (((info.get("response") or {}).get("user") or {}).get("name"))
+        or "unknown"
+    )
+    target_path = Path(config_path) if config_path else resolve_secret_config_path(config.root_dir)
+    save_tumblr_tokens_to_config(
+        target_path,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        client_id=config.tumblr_client_id,
+        client_secret=config.tumblr_client_secret,
+        blog_identifier=config.tumblr_blog_identifier,
+    )
+    click.echo(f"Tumblr token refresh succeeded. user={user_name}")
+    click.echo(f"saved_to={target_path}")
 
 
 @cli.command("worker")

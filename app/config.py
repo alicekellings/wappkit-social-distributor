@@ -31,7 +31,7 @@ def _env_secret_with_b64(plain_name: str, b64_name: str) -> str | None:
     return os.getenv(plain_name) or None
 
 
-def _load_secret_config(root_dir: Path) -> None:
+def secret_config_candidates(root_dir: Path) -> list[Path]:
     configured_path = os.getenv("WAPPKIT_CONFIG_FILE")
     candidates = []
     if configured_path:
@@ -43,8 +43,22 @@ def _load_secret_config(root_dir: Path) -> None:
             Path("/data/wappkit-secrets.json"),
         ]
     )
+    return candidates
 
-    chosen_path = next((path for path in candidates if path.exists()), None)
+
+def resolve_secret_config_path(root_dir: Path) -> Path:
+    candidates = secret_config_candidates(root_dir)
+    existing = next((path for path in candidates if path.exists()), None)
+    if existing:
+        return existing
+    configured_path = os.getenv("WAPPKIT_CONFIG_FILE")
+    if configured_path:
+        return Path(configured_path)
+    return Path("/data/wappkit-secrets.json")
+
+
+def _load_secret_config(root_dir: Path) -> None:
+    chosen_path = next((path for path in secret_config_candidates(root_dir) if path.exists()), None)
     if not chosen_path:
         return
 
