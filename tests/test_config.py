@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.config import Config
+from app.config import Config, secret_config_candidates
 
 
 def test_blogger_tokens_b64_override_plain(monkeypatch, tmp_path: Path) -> None:
@@ -63,9 +63,17 @@ def test_secret_config_file_overrides_env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("BLOGGER_ACCESS_TOKEN", "env-access-token")
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "outputs"))
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
 
     config = Config.load()
 
     assert config.blogger_access_token == "file-access-token"
     assert config.blogger_blog_url == "https://wappkit.blogspot.com/"
     assert config.delivery_platforms == ["blogger"]
+
+
+def test_repo_level_railway_secret_file_is_checked_before_local_backup(tmp_path: Path) -> None:
+    candidates = secret_config_candidates(tmp_path)
+
+    assert candidates[0] == tmp_path / "railway.secrets.json"
+    assert candidates[1] == tmp_path / "config.secrets.json"

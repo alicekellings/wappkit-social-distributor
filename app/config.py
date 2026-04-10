@@ -4,7 +4,7 @@ import base64
 import binascii
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -38,6 +38,7 @@ def secret_config_candidates(root_dir: Path) -> list[Path]:
         candidates.append(Path(configured_path))
     candidates.extend(
         [
+            root_dir / "railway.secrets.json",
             root_dir / "config.secrets.json",
             root_dir / "local-secrets" / "wappkit-secrets.json",
             Path("/data/wappkit-secrets.json"),
@@ -57,18 +58,20 @@ def resolve_secret_config_path(root_dir: Path) -> Path:
     return Path("/data/wappkit-secrets.json")
 
 
-def _load_secret_config(root_dir: Path) -> None:
+def _load_secret_config(root_dir: Path) -> Path | None:
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return None
     chosen_path = next((path for path in secret_config_candidates(root_dir) if path.exists()), None)
     if not chosen_path:
-        return
+        return None
 
     try:
         raw = json.loads(chosen_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return
+        return None
 
     if not isinstance(raw, dict):
-        return
+        return None
 
     payload = raw.get("env") if isinstance(raw.get("env"), dict) else raw
     for key, value in payload.items():
@@ -80,6 +83,7 @@ def _load_secret_config(root_dir: Path) -> None:
             continue
         else:
             os.environ[key] = str(value)
+    return chosen_path
 
 
 @dataclass(slots=True)
@@ -150,6 +154,7 @@ class Config:
     fallback_cloudflare_api_key: str | None = None
     fallback_cloudflare_account_id: str | None = None
     fallback_cloudflare_models: list[str] | None = None
+    secret_config_path: Path | None = field(default=None, kw_only=True)
 
     @property
     def database_path(self) -> Path:
@@ -159,7 +164,7 @@ class Config:
     def load(cls) -> "Config":
         root_dir = Path(__file__).resolve().parents[1]
         load_dotenv(root_dir / ".env")
-        _load_secret_config(root_dir)
+        secret_config_path = _load_secret_config(root_dir)
 
         data_dir_raw = os.getenv("DATA_DIR", "./data")
         outputs_dir_raw = os.getenv("OUTPUTS_DIR", "./outputs")
@@ -196,6 +201,7 @@ class Config:
 
         return cls(
             root_dir=root_dir,
+            secret_config_path=secret_config_path,
             site_url=os.getenv("WAPPKIT_SITE_URL", "https://www.wappkit.com").rstrip("/"),
             sitemap_url=os.getenv("WAPPKIT_SITEMAP_URL", "https://www.wappkit.com/sitemap.xml"),
             rss_url=os.getenv("WAPPKIT_RSS_URL", "https://www.wappkit.com/rss.xml"),
@@ -209,16 +215,16 @@ class Config:
             check_interval_minutes=int(os.getenv("CHECK_INTERVAL_MINUTES", "30")),
             max_articles_per_run=int(os.getenv("MAX_ARTICLES_PER_RUN", "1")),
             delivery_platforms=_split_csv(os.getenv("DELIVERY_PLATFORMS", "devto")),
-            openai_api_key=os.getenv("OPENAI_API_KEY") or None,
+            openai_api_key=_env_secret_with_b64("OPENAI_API_KEY", "OPENAI_API_KEY_B64"),
             openai_base_url=os.getenv("OPENAI_BASE_URL") or None,
             openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4"),
-            devto_api_key=os.getenv("DEVTO_API_KEY") or None,
+            devto_api_key=_env_secret_with_b64("DEVTO_API_KEY", "DEVTO_API_KEY_B64"),
             devto_publish_status=publish_status,
             devto_default_tags=_split_csv(os.getenv("DEVTO_DEFAULT_TAGS", "wappkit,software,productivity,saas")),
             devto_require_llm_for_publication=_env_bool("DEVTO_REQUIRE_LLM_FOR_PUBLICATION", True),
             blogger_access_token=_env_secret_with_b64("BLOGGER_ACCESS_TOKEN", "BLOGGER_ACCESS_TOKEN_B64"),
             blogger_client_id=os.getenv("BLOGGER_CLIENT_ID") or None,
-            blogger_client_secret=os.getenv("BLOGGER_CLIENT_SECRET") or None,
+            blogger_client_secret=_env_secret_with_b64("BLOGGER_CLIENT_SECRET", "BLOGGER_CLIENT_SECRET_B64"),
             blogger_refresh_token=_env_secret_with_b64("BLOGGER_REFRESH_TOKEN", "BLOGGER_REFRESH_TOKEN_B64"),
             blogger_blog_id=os.getenv("BLOGGER_BLOG_ID") or None,
             blogger_blog_url=os.getenv("BLOGGER_BLOG_URL") or None,
@@ -237,7 +243,7 @@ class Config:
             mastodon_language=os.getenv("MASTODON_LANGUAGE", "en"),
             mastodon_require_llm_for_publication=_env_bool("MASTODON_REQUIRE_LLM_FOR_PUBLICATION", True),
             tumblr_client_id=os.getenv("TUMBLR_CLIENT_ID") or None,
-            tumblr_client_secret=os.getenv("TUMBLR_CLIENT_SECRET") or None,
+            tumblr_client_secret=_env_secret_with_b64("TUMBLR_CLIENT_SECRET", "TUMBLR_CLIENT_SECRET_B64"),
             tumblr_access_token=_env_secret_with_b64("TUMBLR_ACCESS_TOKEN", "TUMBLR_ACCESS_TOKEN_B64"),
             tumblr_refresh_token=_env_secret_with_b64("TUMBLR_REFRESH_TOKEN", "TUMBLR_REFRESH_TOKEN_B64"),
             tumblr_blog_identifier=os.getenv("TUMBLR_BLOG_IDENTIFIER") or None,

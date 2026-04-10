@@ -49,6 +49,7 @@ def normalize_platforms(platforms: list[str]) -> list[str]:
 def log_runtime_config_summary(config: Config) -> None:
     click.echo(
         "Runtime config: "
+        f"secret_config={config.secret_config_path or 'none'} "
         f"platforms={','.join(normalize_platforms(config.delivery_platforms))} "
         f"devto_api_key={'yes' if bool(config.devto_api_key) else 'no'} "
         f"blogger_access_token={'yes' if bool(config.blogger_access_token) else 'no'} "

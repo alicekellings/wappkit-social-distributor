@@ -11,6 +11,16 @@ It does one job:
 
 The project can read secrets from a single JSON file, so you do not have to keep every token in Railway variables.
 
+Supported secret file lookup order:
+
+1. `WAPPKIT_CONFIG_FILE`
+2. `railway.secrets.json`
+3. `config.secrets.json`
+4. `local-secrets/wappkit-secrets.json`
+5. `/data/wappkit-secrets.json`
+
+If you want Railway to deploy secrets together with the repo instead of Railway variable management, create a tracked `railway.secrets.json` in the project root.
+
 The first live target is `DEV.to`.
 
 The next integrated targets are:
@@ -121,6 +131,20 @@ python -m app.main run-mastodon-once --dry-run
 python -m app.main run-tumblr-once --dry-run
 python -m app.main run-selected-once --dry-run
 ```
+
+## Railway Without Variable Manager
+
+If you want the Railway worker to boot from a repo-bundled config file instead of Railway variables:
+
+1. copy `railway.secrets.example.json` to `railway.secrets.json`
+2. fill in your real tokens and platform settings
+3. commit and deploy that file together with the code
+4. check startup logs for `secret_config=...railway.secrets.json`
+
+Important:
+
+- this is convenient, but it also means secrets live in the repository history
+- if you do not want that risk, keep using `/data/wappkit-secrets.json` on the persistent volume instead
 
 ## Multi-Platform Worker
 
