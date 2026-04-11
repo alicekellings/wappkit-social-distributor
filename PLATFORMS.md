@@ -78,6 +78,9 @@ This file tracks which external distribution platforms are already wired into `w
     - `TUMBLR_REQUIRE_LLM_FOR_PUBLICATION`
   - Notes:
     - current implementation automatically refreshes the access token after a `401`
+    - `offline_access` is mandatory during authorization, otherwise the worker will not get a stable refresh token
+    - the repo config is now only the bootstrap source; the worker persists the latest Tumblr OAuth state into `/data/tumblr-oauth.json`
+    - after the first successful authorization, later refreshes should not require daily manual token replacement
     - blog identifier can be `myawesomeblogs` or `myawesomeblogs.tumblr.com`
     - Railway is safer with the `B64` token variants
     - current live result was `Draft created on Tumblr`, so the publication chain is already confirmed working
