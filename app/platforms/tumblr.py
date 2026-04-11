@@ -17,6 +17,7 @@ class TumblrPublisher:
         self.token_url = f"{self.api_root}/oauth2/token"
         self.token_state_path = self.config.data_dir / "tumblr-oauth.json"
         self._token_state = self._load_token_state()
+        self._bootstrap_token_state()
 
     def build_payload(self, rewritten: RewrittenArticle, source: SourceArticle) -> dict:
         state = "published" if self._should_publish_publicly(rewritten) else "draft"
@@ -105,7 +106,7 @@ class TumblrPublisher:
         }
 
     def _ensure_access_token(self) -> str:
-        access_token = self.config.tumblr_access_token or self._token_state.get("access_token")
+        access_token = self._token_state.get("access_token") or self.config.tumblr_access_token
         if access_token:
             return str(access_token)
         if self._can_refresh():
@@ -116,7 +117,7 @@ class TumblrPublisher:
         return bool(self._refresh_token() and self.config.tumblr_client_id and self.config.tumblr_client_secret)
 
     def _refresh_token(self) -> str | None:
-        return self.config.tumblr_refresh_token or self._token_state.get("refresh_token") or None
+        return self._token_state.get("refresh_token") or self.config.tumblr_refresh_token or None
 
     def _refresh_access_token(self) -> str:
         refresh_token = self._refresh_token()
@@ -156,6 +157,17 @@ class TumblrPublisher:
             if value:
                 cleaned[key] = str(value)
         return cleaned
+
+    def _bootstrap_token_state(self) -> None:
+        seeded = False
+        if not self._token_state.get("access_token") and self.config.tumblr_access_token:
+            self._token_state["access_token"] = str(self.config.tumblr_access_token)
+            seeded = True
+        if not self._token_state.get("refresh_token") and self.config.tumblr_refresh_token:
+            self._token_state["refresh_token"] = str(self.config.tumblr_refresh_token)
+            seeded = True
+        if seeded:
+            self._save_token_state()
 
     def _save_token_state(self) -> None:
         self.token_state_path.parent.mkdir(parents=True, exist_ok=True)

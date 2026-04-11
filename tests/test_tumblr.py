@@ -160,7 +160,7 @@ def test_tumblr_refreshes_token_after_unauthorized(tmp_path: Path, monkeypatch) 
     assert calls[-1]["headers"]["Authorization"] == "Bearer new-access-token"
 
 
-def test_tumblr_prefers_env_tokens_over_cached_state(tmp_path: Path) -> None:
+def test_tumblr_prefers_cached_state_over_bootstrap_tokens(tmp_path: Path) -> None:
     config = build_config(tmp_path)
     config.data_dir.mkdir(parents=True, exist_ok=True)
     (config.data_dir / "tumblr-oauth.json").write_text(
@@ -170,5 +170,17 @@ def test_tumblr_prefers_env_tokens_over_cached_state(tmp_path: Path) -> None:
 
     publisher = TumblrPublisher(config)
 
+    assert publisher._ensure_access_token() == "stale-access"
+    assert publisher._refresh_token() == "stale-refresh"
+
+
+def test_tumblr_bootstraps_token_state_from_config_when_cache_missing(tmp_path: Path) -> None:
+    config = build_config(tmp_path)
+
+    publisher = TumblrPublisher(config)
+
     assert publisher._ensure_access_token() == "access-token"
     assert publisher._refresh_token() == "refresh-token"
+    state_file = config.data_dir / "tumblr-oauth.json"
+    assert state_file.exists()
+    assert '"access_token": "access-token"' in state_file.read_text(encoding="utf-8")
