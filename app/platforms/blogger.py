@@ -18,6 +18,7 @@ class BloggerPublisher:
         self.token_url = "https://oauth2.googleapis.com/token"
         self.token_state_path = self.config.data_dir / "blogger-oauth.json"
         self._token_state = self._load_token_state()
+        self._bootstrap_token_state()
 
     def build_payload(self, rewritten: RewrittenArticle, source: SourceArticle) -> dict:
         return {
@@ -110,7 +111,7 @@ class BloggerPublisher:
         return response
 
     def _ensure_access_token(self) -> str | None:
-        return self.config.blogger_access_token or self._token_state.get("access_token") or (
+        return self._token_state.get("access_token") or self.config.blogger_access_token or (
             self._refresh_access_token() if self._can_refresh() else None
         )
 
@@ -118,7 +119,7 @@ class BloggerPublisher:
         return bool(self._refresh_token() and self.config.blogger_client_id and self.config.blogger_client_secret)
 
     def _refresh_token(self) -> str | None:
-        return self.config.blogger_refresh_token or self._token_state.get("refresh_token") or None
+        return self._token_state.get("refresh_token") or self.config.blogger_refresh_token or None
 
     def _refresh_access_token(self) -> str:
         refresh_token = self._refresh_token()
@@ -161,6 +162,17 @@ class BloggerPublisher:
             if value:
                 cleaned[key] = str(value)
         return cleaned
+
+    def _bootstrap_token_state(self) -> None:
+        seeded = False
+        if not self._token_state.get("access_token") and self.config.blogger_access_token:
+            self._token_state["access_token"] = str(self.config.blogger_access_token)
+            seeded = True
+        if not self._token_state.get("refresh_token") and self.config.blogger_refresh_token:
+            self._token_state["refresh_token"] = str(self.config.blogger_refresh_token)
+            seeded = True
+        if seeded:
+            self._save_token_state()
 
     def _save_token_state(self) -> None:
         self.token_state_path.parent.mkdir(parents=True, exist_ok=True)

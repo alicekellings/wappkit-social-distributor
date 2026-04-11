@@ -15,6 +15,14 @@ from app.platforms.wordpress_com import WordpressComPublisher
 from app.rewrite import BloggerRewriter, DevtoRewriter, MastodonRewriter, TumblrRewriter, WordpressRewriter
 from app.source_loader import load_source_article
 from app.store import DeliveryStore
+from app.blogger_oauth import (
+    DEFAULT_SCOPE as BLOGGER_DEFAULT_SCOPE,
+    build_authorize_url as build_blogger_authorize_url,
+    exchange_code_for_tokens as exchange_blogger_code_for_tokens,
+    refresh_tokens as refresh_blogger_tokens,
+    save_blogger_tokens_to_config,
+    verify_access_token as verify_blogger_access_token,
+)
 from app.tumblr_oauth import (
     DEFAULT_SCOPE,
     build_authorize_url,
@@ -413,6 +421,85 @@ def run_tumblr_once(config: Config, slug: str | None, dry_run: bool) -> int:
 @click.group()
 def cli() -> None:
     """Wappkit social distributor CLI."""
+
+
+@cli.command("blogger-auth-url")
+@click.option("--redirect-uri", default="https://www.wappkit.com/", show_default=True, help="OAuth redirect URI.")
+@click.option("--state", default="wappkit_blogger_auth", show_default=True, help="Opaque state string.")
+@click.option("--scope", default=BLOGGER_DEFAULT_SCOPE, show_default=True, help="Google OAuth scopes.")
+def blogger_auth_url_command(redirect_uri: str, state: str, scope: str) -> None:
+    config = Config.load()
+    if not config.blogger_client_id:
+        raise click.ClickException("BLOGGER_CLIENT_ID is required to build the Blogger authorize URL.")
+    click.echo(build_blogger_authorize_url(config.blogger_client_id, redirect_uri, state, scope))
+
+
+@cli.command("blogger-exchange-code")
+@click.option("--code", required=True, help="Authorization code returned by Google.")
+@click.option("--redirect-uri", default="https://www.wappkit.com/", show_default=True, help="OAuth redirect URI.")
+@click.option("--config-path", default=None, help="Optional target secrets file path.")
+def blogger_exchange_code_command(code: str, redirect_uri: str, config_path: str | None) -> None:
+    config = Config.load()
+    if not config.blogger_client_id or not config.blogger_client_secret:
+        raise click.ClickException("BLOGGER_CLIENT_ID and BLOGGER_CLIENT_SECRET are required.")
+
+    token_data = exchange_blogger_code_for_tokens(
+        client_id=config.blogger_client_id,
+        client_secret=config.blogger_client_secret,
+        redirect_uri=redirect_uri,
+        code=code,
+        timeout=config.request_timeout_seconds,
+    )
+    access_token = str(token_data.get("access_token") or "").strip()
+    refresh_token = str(token_data.get("refresh_token") or "").strip() or None
+    if not access_token:
+        raise click.ClickException("Google returned no access_token.")
+
+    info = verify_blogger_access_token(access_token, timeout=config.request_timeout_seconds)
+    target_path = Path(config_path) if config_path else resolve_secret_config_path(config.root_dir)
+    save_blogger_tokens_to_config(
+        target_path,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        client_id=config.blogger_client_id,
+        client_secret=config.blogger_client_secret,
+        blog_url=config.blogger_blog_url,
+    )
+    click.echo(f"Blogger token exchange succeeded. scope={info.get('scope', '')}")
+    click.echo(f"refresh_token_returned={'yes' if bool(refresh_token) else 'no'}")
+    click.echo(f"saved_to={target_path}")
+
+
+@cli.command("blogger-refresh-token")
+@click.option("--config-path", default=None, help="Optional target secrets file path.")
+def blogger_refresh_token_command(config_path: str | None) -> None:
+    config = Config.load()
+    if not config.blogger_client_id or not config.blogger_client_secret or not config.blogger_refresh_token:
+        raise click.ClickException("BLOGGER_CLIENT_ID, BLOGGER_CLIENT_SECRET, and BLOGGER_REFRESH_TOKEN are required.")
+
+    token_data = refresh_blogger_tokens(
+        client_id=config.blogger_client_id,
+        client_secret=config.blogger_client_secret,
+        refresh_token=config.blogger_refresh_token,
+        timeout=config.request_timeout_seconds,
+    )
+    access_token = str(token_data.get("access_token") or "").strip()
+    refresh_token = str(token_data.get("refresh_token") or "").strip() or config.blogger_refresh_token
+    if not access_token:
+        raise click.ClickException("Google refresh returned no access_token.")
+
+    info = verify_blogger_access_token(access_token, timeout=config.request_timeout_seconds)
+    target_path = Path(config_path) if config_path else resolve_secret_config_path(config.root_dir)
+    save_blogger_tokens_to_config(
+        target_path,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        client_id=config.blogger_client_id,
+        client_secret=config.blogger_client_secret,
+        blog_url=config.blogger_blog_url,
+    )
+    click.echo(f"Blogger token refresh succeeded. scope={info.get('scope', '')}")
+    click.echo(f"saved_to={target_path}")
 
 
 @cli.command("discover")

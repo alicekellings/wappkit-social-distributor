@@ -163,3 +163,29 @@ def test_blogger_refreshes_token_after_unauthorized(tmp_path, monkeypatch) -> No
     assert any(call["url"] == "https://oauth2.googleapis.com/token" for call in calls)
     post_calls = [call for call in calls if call["url"].endswith("/blogs/123456/posts")]
     assert post_calls[-1]["headers"]["Authorization"] == "Bearer new-access-token"
+
+
+def test_blogger_prefers_cached_state_over_bootstrap_tokens(tmp_path) -> None:
+    config = build_config(tmp_path)
+    config.data_dir.mkdir(parents=True, exist_ok=True)
+    (config.data_dir / "blogger-oauth.json").write_text(
+        '{"access_token":"cached-access","refresh_token":"cached-refresh"}',
+        encoding="utf-8",
+    )
+
+    publisher = BloggerPublisher(config)
+
+    assert publisher._ensure_access_token() == "cached-access"
+    assert publisher._refresh_token() == "cached-refresh"
+
+
+def test_blogger_bootstraps_token_state_from_config_when_cache_missing(tmp_path) -> None:
+    config = build_config(tmp_path)
+
+    publisher = BloggerPublisher(config)
+
+    assert publisher._ensure_access_token() == "test-token"
+    assert publisher._refresh_token() == "refresh-token"
+    state_file = config.data_dir / "blogger-oauth.json"
+    assert state_file.exists()
+    assert '"access_token": "test-token"' in state_file.read_text(encoding="utf-8")
