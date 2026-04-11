@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from app.config import Config, secret_config_candidates
+from app.secret_codec import encode_secret
 
 
 def test_blogger_tokens_b64_override_plain(monkeypatch, tmp_path: Path) -> None:
@@ -51,6 +52,22 @@ def test_tumblr_tokens_b64_override_plain(monkeypatch, tmp_path: Path) -> None:
 
     assert config.tumblr_access_token == "tumblr-b64-access"
     assert config.tumblr_refresh_token == "tumblr-b64-refresh"
+
+
+def test_blogger_obf_values_decode(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("BLOGGER_CLIENT_ID_OBF", encode_secret("blogger-client-id", "BLOGGER_CLIENT_ID_OBF"))
+    monkeypatch.setenv("BLOGGER_CLIENT_SECRET_OBF", encode_secret("blogger-client-secret", "BLOGGER_CLIENT_SECRET_OBF"))
+    monkeypatch.setenv("BLOGGER_REFRESH_TOKEN_OBF", encode_secret("blogger-refresh-token", "BLOGGER_REFRESH_TOKEN_OBF"))
+    monkeypatch.setenv("BLOGGER_ACCESS_TOKEN_OBF", encode_secret("blogger-access-token", "BLOGGER_ACCESS_TOKEN_OBF"))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "outputs"))
+
+    config = Config.load()
+
+    assert config.blogger_client_id == "blogger-client-id"
+    assert config.blogger_client_secret == "blogger-client-secret"
+    assert config.blogger_refresh_token == "blogger-refresh-token"
+    assert config.blogger_access_token == "blogger-access-token"
 
 
 def test_secret_config_file_overrides_env(monkeypatch, tmp_path: Path) -> None:

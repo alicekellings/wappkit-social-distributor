@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
+from app.secret_codec import decode_secret
 
 
 def _split_csv(value: str) -> list[str]:
@@ -29,6 +30,16 @@ def _env_secret_with_b64(plain_name: str, b64_name: str) -> str | None:
         except (binascii.Error, UnicodeDecodeError):
             pass
     return os.getenv(plain_name) or None
+
+
+def _env_secret_value(plain_name: str, b64_name: str, obf_name: str) -> str | None:
+    obfuscated = os.getenv(obf_name)
+    if obfuscated:
+        try:
+            return decode_secret(obfuscated.strip(), obf_name)
+        except Exception:
+            pass
+    return _env_secret_with_b64(plain_name, b64_name)
 
 
 def secret_config_candidates(root_dir: Path) -> list[Path]:
@@ -215,37 +226,37 @@ class Config:
             check_interval_minutes=int(os.getenv("CHECK_INTERVAL_MINUTES", "30")),
             max_articles_per_run=int(os.getenv("MAX_ARTICLES_PER_RUN", "1")),
             delivery_platforms=_split_csv(os.getenv("DELIVERY_PLATFORMS", "devto")),
-            openai_api_key=_env_secret_with_b64("OPENAI_API_KEY", "OPENAI_API_KEY_B64"),
+            openai_api_key=_env_secret_value("OPENAI_API_KEY", "OPENAI_API_KEY_B64", "OPENAI_API_KEY_OBF"),
             openai_base_url=os.getenv("OPENAI_BASE_URL") or None,
             openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4"),
-            devto_api_key=_env_secret_with_b64("DEVTO_API_KEY", "DEVTO_API_KEY_B64"),
+            devto_api_key=_env_secret_value("DEVTO_API_KEY", "DEVTO_API_KEY_B64", "DEVTO_API_KEY_OBF"),
             devto_publish_status=publish_status,
             devto_default_tags=_split_csv(os.getenv("DEVTO_DEFAULT_TAGS", "wappkit,software,productivity,saas")),
             devto_require_llm_for_publication=_env_bool("DEVTO_REQUIRE_LLM_FOR_PUBLICATION", True),
-            blogger_access_token=_env_secret_with_b64("BLOGGER_ACCESS_TOKEN", "BLOGGER_ACCESS_TOKEN_B64"),
-            blogger_client_id=os.getenv("BLOGGER_CLIENT_ID") or None,
-            blogger_client_secret=_env_secret_with_b64("BLOGGER_CLIENT_SECRET", "BLOGGER_CLIENT_SECRET_B64"),
-            blogger_refresh_token=_env_secret_with_b64("BLOGGER_REFRESH_TOKEN", "BLOGGER_REFRESH_TOKEN_B64"),
+            blogger_access_token=_env_secret_value("BLOGGER_ACCESS_TOKEN", "BLOGGER_ACCESS_TOKEN_B64", "BLOGGER_ACCESS_TOKEN_OBF"),
+            blogger_client_id=_env_secret_value("BLOGGER_CLIENT_ID", "BLOGGER_CLIENT_ID_B64", "BLOGGER_CLIENT_ID_OBF"),
+            blogger_client_secret=_env_secret_value("BLOGGER_CLIENT_SECRET", "BLOGGER_CLIENT_SECRET_B64", "BLOGGER_CLIENT_SECRET_OBF"),
+            blogger_refresh_token=_env_secret_value("BLOGGER_REFRESH_TOKEN", "BLOGGER_REFRESH_TOKEN_B64", "BLOGGER_REFRESH_TOKEN_OBF"),
             blogger_blog_id=os.getenv("BLOGGER_BLOG_ID") or None,
             blogger_blog_url=os.getenv("BLOGGER_BLOG_URL") or None,
             blogger_publish_status=blogger_publish_status,
             blogger_default_labels=_split_csv(os.getenv("BLOGGER_DEFAULT_LABELS", "wappkit,blog,software")),
             blogger_require_llm_for_publication=_env_bool("BLOGGER_REQUIRE_LLM_FOR_PUBLICATION", True),
-            wordpress_access_token=_env_secret_with_b64("WORDPRESS_ACCESS_TOKEN", "WORDPRESS_ACCESS_TOKEN_B64"),
+            wordpress_access_token=_env_secret_value("WORDPRESS_ACCESS_TOKEN", "WORDPRESS_ACCESS_TOKEN_B64", "WORDPRESS_ACCESS_TOKEN_OBF"),
             wordpress_site=os.getenv("WORDPRESS_SITE") or None,
             wordpress_publish_status=wordpress_publish_status,
             wordpress_default_tags=_split_csv(os.getenv("WORDPRESS_DEFAULT_TAGS", "wappkit,blog,software")),
             wordpress_default_categories=_split_csv(os.getenv("WORDPRESS_DEFAULT_CATEGORIES", "Wappkit")),
             wordpress_require_llm_for_publication=_env_bool("WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION", True),
             mastodon_base_url=os.getenv("MASTODON_BASE_URL") or None,
-            mastodon_access_token=_env_secret_with_b64("MASTODON_ACCESS_TOKEN", "MASTODON_ACCESS_TOKEN_B64"),
+            mastodon_access_token=_env_secret_value("MASTODON_ACCESS_TOKEN", "MASTODON_ACCESS_TOKEN_B64", "MASTODON_ACCESS_TOKEN_OBF"),
             mastodon_visibility=mastodon_visibility,
             mastodon_language=os.getenv("MASTODON_LANGUAGE", "en"),
             mastodon_require_llm_for_publication=_env_bool("MASTODON_REQUIRE_LLM_FOR_PUBLICATION", True),
-            tumblr_client_id=os.getenv("TUMBLR_CLIENT_ID") or None,
-            tumblr_client_secret=_env_secret_with_b64("TUMBLR_CLIENT_SECRET", "TUMBLR_CLIENT_SECRET_B64"),
-            tumblr_access_token=_env_secret_with_b64("TUMBLR_ACCESS_TOKEN", "TUMBLR_ACCESS_TOKEN_B64"),
-            tumblr_refresh_token=_env_secret_with_b64("TUMBLR_REFRESH_TOKEN", "TUMBLR_REFRESH_TOKEN_B64"),
+            tumblr_client_id=_env_secret_value("TUMBLR_CLIENT_ID", "TUMBLR_CLIENT_ID_B64", "TUMBLR_CLIENT_ID_OBF"),
+            tumblr_client_secret=_env_secret_value("TUMBLR_CLIENT_SECRET", "TUMBLR_CLIENT_SECRET_B64", "TUMBLR_CLIENT_SECRET_OBF"),
+            tumblr_access_token=_env_secret_value("TUMBLR_ACCESS_TOKEN", "TUMBLR_ACCESS_TOKEN_B64", "TUMBLR_ACCESS_TOKEN_OBF"),
+            tumblr_refresh_token=_env_secret_value("TUMBLR_REFRESH_TOKEN", "TUMBLR_REFRESH_TOKEN_B64", "TUMBLR_REFRESH_TOKEN_OBF"),
             tumblr_blog_identifier=os.getenv("TUMBLR_BLOG_IDENTIFIER") or None,
             tumblr_publish_status=tumblr_publish_status,
             tumblr_default_tags=_split_csv(os.getenv("TUMBLR_DEFAULT_TAGS", "wappkit,blog,software")),

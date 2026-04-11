@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import base64
 import json
 from pathlib import Path
 from urllib.parse import urlencode
 
 import requests
+from app.secret_codec import encode_secret
 
 
 AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -105,13 +105,21 @@ def save_blogger_tokens_to_config(
     if not isinstance(payload, dict):
         payload = {}
 
-    payload["BLOGGER_ACCESS_TOKEN_B64"] = base64.b64encode(access_token.encode("utf-8")).decode("utf-8")
+    payload["BLOGGER_ACCESS_TOKEN_OBF"] = encode_secret(access_token, "BLOGGER_ACCESS_TOKEN_OBF")
+    payload.pop("BLOGGER_ACCESS_TOKEN_B64", None)
+    payload.pop("BLOGGER_ACCESS_TOKEN", None)
     if refresh_token:
-        payload["BLOGGER_REFRESH_TOKEN_B64"] = base64.b64encode(refresh_token.encode("utf-8")).decode("utf-8")
+        payload["BLOGGER_REFRESH_TOKEN_OBF"] = encode_secret(refresh_token, "BLOGGER_REFRESH_TOKEN_OBF")
+        payload.pop("BLOGGER_REFRESH_TOKEN_B64", None)
+        payload.pop("BLOGGER_REFRESH_TOKEN", None)
     if client_id:
-        payload["BLOGGER_CLIENT_ID"] = client_id
+        payload["BLOGGER_CLIENT_ID_OBF"] = encode_secret(client_id, "BLOGGER_CLIENT_ID_OBF")
+        payload.pop("BLOGGER_CLIENT_ID_B64", None)
+        payload.pop("BLOGGER_CLIENT_ID", None)
     if client_secret:
-        payload["BLOGGER_CLIENT_SECRET_B64"] = base64.b64encode(client_secret.encode("utf-8")).decode("utf-8")
+        payload["BLOGGER_CLIENT_SECRET_OBF"] = encode_secret(client_secret, "BLOGGER_CLIENT_SECRET_OBF")
+        payload.pop("BLOGGER_CLIENT_SECRET_B64", None)
+        payload.pop("BLOGGER_CLIENT_SECRET", None)
     if blog_url:
         payload["BLOGGER_BLOG_URL"] = blog_url
 
