@@ -235,7 +235,7 @@ Notes:
 - use the WordPress.com site identifier such as `blogxblog2.wordpress.com`
 - the current implementation uses the official WordPress.com REST API
 - draft/public behavior mirrors the DEV.to safety policy
-- on Railway, `WORDPRESS_ACCESS_TOKEN_B64` is safer than raw `WORDPRESS_ACCESS_TOKEN` because some WordPress tokens contain special characters such as `#`
+- repo config now prefers `*_OBF` values for secrets; use `WORDPRESS_ACCESS_TOKEN_OBF` in tracked config files when possible
 
 Credential location:
 
@@ -280,7 +280,7 @@ Notes:
 
 - Mastodon is handled as a short summary + source link platform, not a full-article mirror
 - the current implementation uses the official Mastodon API
-- on Railway, `MASTODON_ACCESS_TOKEN_B64` is safer than raw `MASTODON_ACCESS_TOKEN` when you want to avoid copy/paste or env formatting issues
+- repo config now prefers `MASTODON_ACCESS_TOKEN_OBF` in tracked config files
 
 ## Tumblr Setup
 
@@ -288,8 +288,8 @@ Required env vars:
 
 - `TUMBLR_CLIENT_ID`
 - `TUMBLR_CLIENT_SECRET`
-- one of `TUMBLR_ACCESS_TOKEN` or `TUMBLR_ACCESS_TOKEN_B64`
-- one of `TUMBLR_REFRESH_TOKEN` or `TUMBLR_REFRESH_TOKEN_B64`
+- one of `TUMBLR_ACCESS_TOKEN`, `TUMBLR_ACCESS_TOKEN_B64`, or `TUMBLR_ACCESS_TOKEN_OBF`
+- one of `TUMBLR_REFRESH_TOKEN`, `TUMBLR_REFRESH_TOKEN_B64`, or `TUMBLR_REFRESH_TOKEN_OBF`
 - `TUMBLR_BLOG_IDENTIFIER`
 
 Recommended safety env vars:
@@ -305,7 +305,7 @@ Notes:
 - local verification already succeeded with a real draft post on `myawesomeblogs`
 - `TUMBLR_BLOG_IDENTIFIER` can be `myawesomeblogs` or `myawesomeblogs.tumblr.com`
 - the publisher automatically retries once with a refreshed access token after a `401`
-- on Railway, `TUMBLR_ACCESS_TOKEN_B64` and `TUMBLR_REFRESH_TOKEN_B64` are safer than raw token values
+- in tracked repo config files, prefer `TUMBLR_ACCESS_TOKEN_OBF` and `TUMBLR_REFRESH_TOKEN_OBF`
 
 Credential location:
 
@@ -381,10 +381,10 @@ You can start from [wappkit-secrets.example.json](./wappkit-secrets.example.json
 
 Notes:
 
-- the file can contain the same names as env vars, for example `BLOGGER_ACCESS_TOKEN`, `TUMBLR_ACCESS_TOKEN_B64`, `WORDPRESS_ACCESS_TOKEN_B64`
+- the file can contain the same names as env vars, but tracked repo config should prefer `*_OBF` keys such as `BLOGGER_ACCESS_TOKEN_OBF`, `TUMBLR_ACCESS_TOKEN_OBF`, and `WORDPRESS_ACCESS_TOKEN_OBF`
 - if the file exists, its values are loaded into runtime config automatically
 - this avoids large variable lists in the Railway UI
-- this is only light obfuscation if you use `*_B64`; it is not real encryption
+- `*_OBF` is still only light obfuscation for repo storage; it is better than raw values or simple base64, but it is not strong encryption
 
 If you want the first few runs to stay safe, keep:
 

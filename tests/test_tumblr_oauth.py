@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from app.secret_codec import decode_secret
 from app.tumblr_oauth import build_authorize_url, save_tumblr_tokens_to_config
 
 
@@ -17,7 +18,7 @@ def test_build_authorize_url_includes_offline_access() -> None:
     assert "state=state123" in url
 
 
-def test_save_tumblr_tokens_to_config_writes_b64_values(tmp_path: Path) -> None:
+def test_save_tumblr_tokens_to_config_writes_obf_values(tmp_path: Path) -> None:
     target = tmp_path / "wappkit-secrets.json"
 
     path = save_tumblr_tokens_to_config(
@@ -31,7 +32,9 @@ def test_save_tumblr_tokens_to_config_writes_b64_values(tmp_path: Path) -> None:
 
     text = path.read_text(encoding="utf-8")
     assert path == target
-    assert "YWNjZXNzLTEyMw==" in text
-    assert "cmVmcmVzaC00NTY=" in text
-    assert '"TUMBLR_CLIENT_ID": "client-id"' in text
+    data = __import__("json").loads(text)
+    assert decode_secret(data["TUMBLR_ACCESS_TOKEN_OBF"], "TUMBLR_ACCESS_TOKEN_OBF") == "access-123"
+    assert decode_secret(data["TUMBLR_REFRESH_TOKEN_OBF"], "TUMBLR_REFRESH_TOKEN_OBF") == "refresh-456"
+    assert decode_secret(data["TUMBLR_CLIENT_ID_OBF"], "TUMBLR_CLIENT_ID_OBF") == "client-id"
+    assert decode_secret(data["TUMBLR_CLIENT_SECRET_OBF"], "TUMBLR_CLIENT_SECRET_OBF") == "client-secret"
     assert '"TUMBLR_BLOG_IDENTIFIER": "myawesomeblogs"' in text

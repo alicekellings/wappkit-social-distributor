@@ -184,3 +184,52 @@ def test_tumblr_bootstraps_token_state_from_config_when_cache_missing(tmp_path: 
     state_file = config.data_dir / "tumblr-oauth.json"
     assert state_file.exists()
     assert '"access_token": "access-token"' in state_file.read_text(encoding="utf-8")
+
+
+def test_tumblr_refresh_falls_back_to_config_refresh_token_when_cached_one_is_invalid(tmp_path: Path, monkeypatch) -> None:
+    config = build_config(tmp_path)
+    config.data_dir.mkdir(parents=True, exist_ok=True)
+    (config.data_dir / "tumblr-oauth.json").write_text(
+        '{"access_token":"cached-access","refresh_token":"stale-refresh"}',
+        encoding="utf-8",
+    )
+    publisher = TumblrPublisher(config)
+
+    class DummyResponse:
+        def __init__(self, status_code: int, data: dict) -> None:
+            self.status_code = status_code
+            self._data = data
+            self.text = str(data)
+
+        def json(self):
+            return self._data
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests.HTTPError(f"{self.status_code} error", response=self)
+
+    refresh_calls = []
+
+    def fake_post(url, headers=None, json=None, data=None, timeout=None):
+        if url.endswith("/v2/oauth2/token"):
+            refresh_calls.append(data["refresh_token"])
+            if data["refresh_token"] == "stale-refresh":
+                return DummyResponse(400, {"error": "invalid_grant", "error_description": "Invalid refresh token"})
+            return DummyResponse(
+                200,
+                {
+                    "access_token": "new-access-token",
+                    "refresh_token": "new-refresh-token",
+                    "token_type": "bearer",
+                    "expires_in": 2520,
+                },
+            )
+        return DummyResponse(201, {"response": {"id": "123", "state": "draft"}, "meta": {"status": 201, "msg": "Created"}})
+
+    monkeypatch.setattr("app.platforms.tumblr.requests.post", fake_post)
+
+    token = publisher._refresh_access_token()
+
+    assert token == "new-access-token"
+    assert refresh_calls == ["stale-refresh", "refresh-token"]
+    assert publisher._token_state["refresh_token"] == "new-refresh-token"

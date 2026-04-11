@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import base64
 import json
 from pathlib import Path
 from urllib.parse import urlencode
 
 import requests
+
+from app.secret_codec import encode_secret
 
 
 AUTHORIZE_URL = "https://www.tumblr.com/oauth2/authorize"
@@ -98,13 +99,21 @@ def save_tumblr_tokens_to_config(
     if not isinstance(payload, dict):
         payload = {}
 
-    payload["TUMBLR_ACCESS_TOKEN_B64"] = base64.b64encode(access_token.encode("utf-8")).decode("utf-8")
+    payload["TUMBLR_ACCESS_TOKEN_OBF"] = encode_secret(access_token, "TUMBLR_ACCESS_TOKEN_OBF")
+    payload.pop("TUMBLR_ACCESS_TOKEN_B64", None)
+    payload.pop("TUMBLR_ACCESS_TOKEN", None)
     if refresh_token:
-        payload["TUMBLR_REFRESH_TOKEN_B64"] = base64.b64encode(refresh_token.encode("utf-8")).decode("utf-8")
+        payload["TUMBLR_REFRESH_TOKEN_OBF"] = encode_secret(refresh_token, "TUMBLR_REFRESH_TOKEN_OBF")
+        payload.pop("TUMBLR_REFRESH_TOKEN_B64", None)
+        payload.pop("TUMBLR_REFRESH_TOKEN", None)
     if client_id:
-        payload["TUMBLR_CLIENT_ID"] = client_id
+        payload["TUMBLR_CLIENT_ID_OBF"] = encode_secret(client_id, "TUMBLR_CLIENT_ID_OBF")
+        payload.pop("TUMBLR_CLIENT_ID_B64", None)
+        payload.pop("TUMBLR_CLIENT_ID", None)
     if client_secret:
-        payload["TUMBLR_CLIENT_SECRET"] = client_secret
+        payload["TUMBLR_CLIENT_SECRET_OBF"] = encode_secret(client_secret, "TUMBLR_CLIENT_SECRET_OBF")
+        payload.pop("TUMBLR_CLIENT_SECRET_B64", None)
+        payload.pop("TUMBLR_CLIENT_SECRET", None)
     if blog_identifier:
         payload["TUMBLR_BLOG_IDENTIFIER"] = blog_identifier
 

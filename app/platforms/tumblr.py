@@ -124,18 +124,43 @@ class TumblrPublisher:
         if not refresh_token or not self.config.tumblr_client_id or not self.config.tumblr_client_secret:
             raise ValueError("Tumblr token refresh requires client id, client secret, and refresh token.")
 
-        response = requests.post(
-            self.token_url,
-            data={
-                "grant_type": "refresh_token",
-                "refresh_token": refresh_token,
-                "client_id": self.config.tumblr_client_id,
-                "client_secret": self.config.tumblr_client_secret,
-            },
-            timeout=self.config.request_timeout_seconds,
-        )
-        self._raise_for_status_with_details(response)
-        data = response.json()
+        tried_tokens: list[str] = []
+        candidate_tokens: list[str] = []
+        if refresh_token:
+            candidate_tokens.append(refresh_token)
+        config_refresh = self.config.tumblr_refresh_token
+        if config_refresh and config_refresh not in candidate_tokens:
+            candidate_tokens.append(config_refresh)
+
+        last_error: Exception | None = None
+        data: dict | None = None
+        for candidate in candidate_tokens:
+            tried_tokens.append(candidate)
+            response = requests.post(
+                self.token_url,
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": candidate,
+                    "client_id": self.config.tumblr_client_id,
+                    "client_secret": self.config.tumblr_client_secret,
+                },
+                timeout=self.config.request_timeout_seconds,
+            )
+            try:
+                self._raise_for_status_with_details(response)
+                data = response.json()
+                self._token_state["refresh_token"] = candidate
+                break
+            except requests.HTTPError as exc:
+                last_error = exc
+                detail = str(exc)
+                if "invalid_grant" not in detail:
+                    raise
+        if data is None:
+            if last_error:
+                raise last_error
+            raise ValueError("Tumblr token refresh failed with no response data.")
+
         self._token_state["access_token"] = str(data.get("access_token") or "")
         if data.get("refresh_token"):
             self._token_state["refresh_token"] = str(data["refresh_token"])

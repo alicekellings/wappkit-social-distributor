@@ -31,29 +31,29 @@ This file tracks which external distribution platforms are already wired into `w
 
 - `WordPress.com`
   - Type: long-form article
-  - Auth: access token or base64-wrapped access token
+  - Auth: access token, with `*_OBF` preferred in tracked repo config
   - Status: live and tested in production
   - Current target: `https://blogxblog2.wordpress.com/`
   - Credential entry:
     - app list: `https://developer.wordpress.com/apps`
     - app details page shows `Client ID` and `Client Secret`
     - token endpoint: `https://public-api.wordpress.com/oauth2/token`
-  - Main env vars: `WORDPRESS_SITE`, `WORDPRESS_ACCESS_TOKEN`, `WORDPRESS_ACCESS_TOKEN_B64`, `WORDPRESS_PUBLISH_STATUS`, `WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION`
+  - Main env vars: `WORDPRESS_SITE`, `WORDPRESS_ACCESS_TOKEN`, `WORDPRESS_ACCESS_TOKEN_B64`, `WORDPRESS_ACCESS_TOKEN_OBF`, `WORDPRESS_PUBLISH_STATUS`, `WORDPRESS_REQUIRE_LLM_FOR_PUBLICATION`
   - Notes:
-    - Railway is more stable with `WORDPRESS_ACCESS_TOKEN_B64` because some WordPress tokens contain special characters
+    - tracked repo config now prefers `WORDPRESS_ACCESS_TOKEN_OBF`
     - when debugging, search logs for `Runtime config:` before anything else
     - if WordPress returns `400`, the code already retries with a minimal payload
 
 - `Mastodon`
   - Type: short summary + source link
-  - Auth: access token or base64-wrapped access token
+  - Auth: access token, with `*_OBF` preferred in tracked repo config
   - Status: live and tested in production
   - Current target: `https://mastodon.social/`
   - Credential entry: `https://mastodon.social/settings/applications`
-  - Main env vars: `MASTODON_BASE_URL`, `MASTODON_ACCESS_TOKEN`, `MASTODON_ACCESS_TOKEN_B64`, `MASTODON_VISIBILITY`, `MASTODON_REQUIRE_LLM_FOR_PUBLICATION`
+  - Main env vars: `MASTODON_BASE_URL`, `MASTODON_ACCESS_TOKEN`, `MASTODON_ACCESS_TOKEN_B64`, `MASTODON_ACCESS_TOKEN_OBF`, `MASTODON_VISIBILITY`, `MASTODON_REQUIRE_LLM_FOR_PUBLICATION`
   - Notes:
     - current publishing path works in production
-    - Railway is more stable with `MASTODON_ACCESS_TOKEN_B64` when token copying becomes inconsistent
+    - tracked repo config now prefers `MASTODON_ACCESS_TOKEN_OBF`
   - for early stage use, `MASTODON_REQUIRE_LLM_FOR_PUBLICATION=0` is more practical
   - Mastodon is intentionally treated as a short social summary platform, not a long-form mirror
 
@@ -71,8 +71,10 @@ This file tracks which external distribution platforms are already wired into `w
     - `TUMBLR_CLIENT_SECRET`
     - `TUMBLR_ACCESS_TOKEN`
     - `TUMBLR_ACCESS_TOKEN_B64`
+    - `TUMBLR_ACCESS_TOKEN_OBF`
     - `TUMBLR_REFRESH_TOKEN`
     - `TUMBLR_REFRESH_TOKEN_B64`
+    - `TUMBLR_REFRESH_TOKEN_OBF`
     - `TUMBLR_BLOG_IDENTIFIER`
     - `TUMBLR_PUBLISH_STATUS`
     - `TUMBLR_REQUIRE_LLM_FOR_PUBLICATION`
@@ -82,7 +84,7 @@ This file tracks which external distribution platforms are already wired into `w
     - the repo config is now only the bootstrap source; the worker persists the latest Tumblr OAuth state into `/data/tumblr-oauth.json`
     - after the first successful authorization, later refreshes should not require daily manual token replacement
     - blog identifier can be `myawesomeblogs` or `myawesomeblogs.tumblr.com`
-    - Railway is safer with the `B64` token variants
+    - tracked repo config now prefers `TUMBLR_*_OBF`
     - current live result was `Draft created on Tumblr`, so the publication chain is already confirmed working
 
 ## Evaluated But Not Integrated Yet

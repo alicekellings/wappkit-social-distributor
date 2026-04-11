@@ -70,6 +70,52 @@ def test_blogger_obf_values_decode(monkeypatch, tmp_path: Path) -> None:
     assert config.blogger_access_token == "blogger-access-token"
 
 
+def test_devto_obf_value_decodes(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("DEVTO_API_KEY_OBF", encode_secret("devto-api-key", "DEVTO_API_KEY_OBF"))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "outputs"))
+
+    config = Config.load()
+
+    assert config.devto_api_key == "devto-api-key"
+
+
+def test_wordpress_obf_value_decodes(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("WORDPRESS_ACCESS_TOKEN_OBF", encode_secret("wordpress-access", "WORDPRESS_ACCESS_TOKEN_OBF"))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "outputs"))
+
+    config = Config.load()
+
+    assert config.wordpress_access_token == "wordpress-access"
+
+
+def test_mastodon_obf_value_decodes(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("MASTODON_ACCESS_TOKEN_OBF", encode_secret("mastodon-access", "MASTODON_ACCESS_TOKEN_OBF"))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "outputs"))
+
+    config = Config.load()
+
+    assert config.mastodon_access_token == "mastodon-access"
+
+
+def test_tumblr_obf_values_decode(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("TUMBLR_CLIENT_ID_OBF", encode_secret("tumblr-client-id", "TUMBLR_CLIENT_ID_OBF"))
+    monkeypatch.setenv("TUMBLR_CLIENT_SECRET_OBF", encode_secret("tumblr-client-secret", "TUMBLR_CLIENT_SECRET_OBF"))
+    monkeypatch.setenv("TUMBLR_ACCESS_TOKEN_OBF", encode_secret("tumblr-access-token", "TUMBLR_ACCESS_TOKEN_OBF"))
+    monkeypatch.setenv("TUMBLR_REFRESH_TOKEN_OBF", encode_secret("tumblr-refresh-token", "TUMBLR_REFRESH_TOKEN_OBF"))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "outputs"))
+
+    config = Config.load()
+
+    assert config.tumblr_client_id == "tumblr-client-id"
+    assert config.tumblr_client_secret == "tumblr-client-secret"
+    assert config.tumblr_access_token == "tumblr-access-token"
+    assert config.tumblr_refresh_token == "tumblr-refresh-token"
+
+
 def test_secret_config_file_overrides_env(monkeypatch, tmp_path: Path) -> None:
     config_path = tmp_path / "wappkit-secrets.json"
     config_path.write_text(
