@@ -233,3 +233,51 @@ def test_tumblr_refresh_falls_back_to_config_refresh_token_when_cached_one_is_in
     assert token == "new-access-token"
     assert refresh_calls == ["stale-refresh", "refresh-token"]
     assert publisher._token_state["refresh_token"] == "new-refresh-token"
+
+
+def test_tumblr_retries_transient_post_errors(tmp_path: Path, monkeypatch) -> None:
+    config = build_config(tmp_path)
+    publisher = TumblrPublisher(config)
+    source = build_source_article()
+    rewritten = RewrittenArticle(
+        title="Demo",
+        description="Demo description",
+        body_markdown="Body paragraph.",
+        tags=["wappkit"],
+        rewrite_source="llm",
+        rewrite_strength="moderate",
+    )
+
+    class DummyResponse:
+        def __init__(self, status_code: int, data: dict) -> None:
+            self.status_code = status_code
+            self._data = data
+            self.text = str(data)
+
+        def json(self):
+            return self._data
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests.HTTPError(f"{self.status_code} error", response=self)
+
+    attempts = {"count": 0}
+
+    def fake_post(url, headers=None, json=None, data=None, timeout=None):
+        if url.endswith("/posts"):
+            attempts["count"] += 1
+            if attempts["count"] < 3:
+                return DummyResponse(400, {"meta": {"msg": "Something broke. Try again."}})
+            return DummyResponse(
+                201,
+                {"response": {"id": "123", "state": "draft"}, "meta": {"status": 201, "msg": "Created"}},
+            )
+        return DummyResponse(200, {"ok": True})
+
+    monkeypatch.setattr("app.platforms.tumblr.requests.post", fake_post)
+    monkeypatch.setattr("app.platforms.tumblr.time.sleep", lambda *_args, **_kwargs: None)
+
+    result = publisher.publish(rewritten, source)
+
+    assert result.external_id == "123"
+    assert attempts["count"] == 3

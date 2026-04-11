@@ -70,6 +70,19 @@ def log_runtime_config_summary(config: Config) -> None:
     )
 
 
+def _log_skip_summary(platform_label: str, skipped_success: int, candidate_count: int, processed: int) -> None:
+    if processed > 0:
+        return
+    if candidate_count == 0:
+        click.echo(f"No article candidates discovered for {platform_label} in this cycle.")
+        return
+    if skipped_success > 0:
+        click.echo(
+            f"No new {platform_label} deliveries in this cycle. "
+            f"Skipped {skipped_success} article(s) already marked successful."
+        )
+
+
 def run_selected_platforms_once(
     config: Config,
     slug: str | None,
@@ -102,9 +115,11 @@ def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
         candidates = discover_articles(config, limit=max(config.max_articles_per_run * 3, 10))
 
     processed = 0
+    skipped_success = 0
 
     for candidate in candidates:
         if not slug and store.has_success("devto", candidate.slug):
+            skipped_success += 1
             continue
 
         click.echo(f"Preparing DEV.to delivery for: {candidate.slug}")
@@ -163,6 +178,7 @@ def run_devto_once(config: Config, slug: str | None, dry_run: bool) -> int:
             if slug:
                 raise
 
+    _log_skip_summary("DEV.to", skipped_success, len(candidates), processed)
     return processed
 
 
@@ -178,9 +194,11 @@ def run_blogger_once(config: Config, slug: str | None, dry_run: bool) -> int:
         candidates = discover_articles(config, limit=max(config.max_articles_per_run * 3, 10))
 
     processed = 0
+    skipped_success = 0
 
     for candidate in candidates:
         if not slug and store.has_success("blogger", candidate.slug):
+            skipped_success += 1
             continue
 
         click.echo(f"Preparing Blogger delivery for: {candidate.slug}")
@@ -239,6 +257,7 @@ def run_blogger_once(config: Config, slug: str | None, dry_run: bool) -> int:
             if slug:
                 raise
 
+    _log_skip_summary("Blogger", skipped_success, len(candidates), processed)
     return processed
 
 
@@ -254,9 +273,11 @@ def run_wordpress_once(config: Config, slug: str | None, dry_run: bool) -> int:
         candidates = discover_articles(config, limit=max(config.max_articles_per_run * 3, 10))
 
     processed = 0
+    skipped_success = 0
 
     for candidate in candidates:
         if not slug and store.has_success("wordpress", candidate.slug):
+            skipped_success += 1
             continue
 
         click.echo(f"Preparing WordPress.com delivery for: {candidate.slug}")
@@ -300,6 +321,7 @@ def run_wordpress_once(config: Config, slug: str | None, dry_run: bool) -> int:
             if slug:
                 raise
 
+    _log_skip_summary("WordPress.com", skipped_success, len(candidates), processed)
     return processed
 
 
@@ -315,9 +337,11 @@ def run_mastodon_once(config: Config, slug: str | None, dry_run: bool) -> int:
         candidates = discover_articles(config, limit=max(config.max_articles_per_run * 3, 10))
 
     processed = 0
+    skipped_success = 0
 
     for candidate in candidates:
         if not slug and store.has_success("mastodon", candidate.slug):
+            skipped_success += 1
             continue
 
         click.echo(f"Preparing Mastodon delivery for: {candidate.slug}")
@@ -354,6 +378,7 @@ def run_mastodon_once(config: Config, slug: str | None, dry_run: bool) -> int:
             if slug:
                 raise
 
+    _log_skip_summary("Mastodon", skipped_success, len(candidates), processed)
     return processed
 
 
@@ -369,9 +394,11 @@ def run_tumblr_once(config: Config, slug: str | None, dry_run: bool) -> int:
         candidates = discover_articles(config, limit=max(config.max_articles_per_run * 3, 10))
 
     processed = 0
+    skipped_success = 0
 
     for candidate in candidates:
         if not slug and store.has_success("tumblr", candidate.slug):
+            skipped_success += 1
             continue
 
         click.echo(f"Preparing Tumblr delivery for: {candidate.slug}")
@@ -415,6 +442,7 @@ def run_tumblr_once(config: Config, slug: str | None, dry_run: bool) -> int:
             if slug:
                 raise
 
+    _log_skip_summary("Tumblr", skipped_success, len(candidates), processed)
     return processed
 
 

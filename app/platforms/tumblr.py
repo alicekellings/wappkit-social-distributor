@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 
 import requests
@@ -42,10 +43,10 @@ class TumblrPublisher:
 
         payload = self.build_payload(rewritten, source)
         access_token = self._ensure_access_token()
-        response = self._post_post(payload, access_token)
+        response = self._post_post_with_retries(payload, access_token)
         if response.status_code == 401 and self._can_refresh():
             access_token = self._refresh_access_token()
-            response = self._post_post(payload, access_token)
+            response = self._post_post_with_retries(payload, access_token)
 
         self._raise_for_status_with_details(response)
         data = response.json()
@@ -97,6 +98,26 @@ class TumblrPublisher:
             json=payload,
             timeout=self.config.request_timeout_seconds,
         )
+
+    def _post_post_with_retries(self, payload: dict, access_token: str) -> requests.Response:
+        response = self._post_post(payload, access_token)
+        if response.status_code != 400:
+            return response
+
+        detail = self._extract_error_detail(response).lower()
+        if not _looks_like_transient_tumblr_error(detail):
+            return response
+
+        for delay_seconds in (1.0, 2.0):
+            time.sleep(delay_seconds)
+            retry_response = self._post_post(payload, access_token)
+            if retry_response.status_code != 400:
+                return retry_response
+            retry_detail = self._extract_error_detail(retry_response).lower()
+            if not _looks_like_transient_tumblr_error(retry_detail):
+                return retry_response
+            response = retry_response
+        return response
 
     def _headers(self, access_token: str) -> dict[str, str]:
         return {
@@ -243,3 +264,18 @@ def _markdown_to_tumblr_text(markdown: str) -> str:
     text = re.sub(r"(?im)^\s*[-*]\s+", "- ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _looks_like_transient_tumblr_error(detail: str) -> bool:
+    markers = (
+        "try again",
+        "went thud",
+        "hiccup",
+        "snag",
+        "flubbed",
+        "goofed",
+        "something broke",
+        "unknown error",
+        "measly little error",
+    )
+    return any(marker in detail for marker in markers)
