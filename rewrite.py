@@ -389,6 +389,92 @@ Original markdown:
         )
 
 
+class WriteasRewriter(_BasePlatformRewriter):
+    def _llm_rewrite(self, article: SourceArticle) -> RewrittenArticle:
+        prompt = f"""
+You are adapting a Wappkit blog post for Write.as anonymous publishing.
+
+Rules:
+- Make this feel like a clean, standalone essay or note, not a copy-paste mirror.
+- Keep the tone calm, direct, and readable in a minimalist writing space.
+- Preserve the real topic and useful details.
+- Rewrite the title so it feels natural on a minimalist blog page. Do not reuse the source title verbatim.
+- Rewrite the opening with a fresh angle that works as a short essay or reflective guide.
+- Keep the wording meaningfully different from the source while preserving structure where useful.
+- Remove obvious product-led CTA wording and anything that feels like site navigation.
+- Keep a short note near the top that this version was originally published on Wappkit.
+- Keep a source link back to Wappkit near the end.
+- Add one short section near the end such as "What stood out", "A short takeaway", or "What I would keep in mind".
+- Keep markdown formatting.
+- Do not invent facts.
+- Avoid copying long verbatim passages from the source unless they are necessary quotes or exact labels.
+- Output valid JSON only.
+
+JSON schema:
+{{
+  "title": "string",
+  "description": "string under 200 chars",
+  "body_markdown": "string",
+  "tags": ["string", "string"]
+}}
+
+Canonical URL: {article.canonical_url}
+Original title: {article.title}
+Original description: {article.description}
+Original markdown:
+{article.markdown}
+""".strip()
+
+        payload = self.router.complete_json(
+            system_prompt="You rewrite articles for publication on Write.as and return JSON only.",
+            user_prompt=prompt,
+            temperature=0.4,
+        )
+
+        return RewrittenArticle(
+            title=str(payload.get("title") or article.title).strip(),
+            description=str(payload.get("description") or article.description).strip()[:200],
+            body_markdown=_ensure_platform_body(
+                str(payload.get("body_markdown") or article.markdown).strip(),
+                article,
+                platform_name="Write.as",
+            ),
+            tags=_sanitize_tags(
+                [str(tag) for tag in payload.get("tags", [])],
+                article,
+                ["wappkit", "writing", "software"],
+            ),
+            rewrite_source="llm",
+            rewrite_strength="moderate",
+        )
+
+    def _fallback_rewrite(self, article: SourceArticle) -> RewrittenArticle:
+        body = _strip_duplicate_h1(article.markdown, article.title)
+        body = _strip_marketing_lines(body)
+        body = _build_writeas_style_intro(article) + "\n\n" + body.strip()
+        body = _ensure_platform_specific_section(body, article, platform_name="Write.as")
+        body = _ensure_origin_note(body, article.canonical_url, platform_name="Write.as")
+        body = body.strip()
+        body += (
+            "\n\n---\n\n"
+            f"Originally published on [Wappkit]({article.canonical_url}). "
+            "Read the source there for the original version and current context."
+        )
+
+        return RewrittenArticle(
+            title=article.title.strip(),
+            description=(article.description or article.title).strip()[:200],
+            body_markdown=body,
+            tags=_sanitize_tags(
+                article.tags + article.categories,
+                article,
+                ["wappkit", "writing", "software"],
+            ),
+            rewrite_source="fallback",
+            rewrite_strength="minimal",
+        )
+
+
 class MastodonRewriter(_BasePlatformRewriter):
     def _llm_rewrite(self, article: SourceArticle) -> RewrittenArticle:
         prompt = f"""
@@ -553,6 +639,18 @@ def _build_tumblr_style_intro(article: SourceArticle) -> str:
     return "\n\n".join(parts)
 
 
+def _build_writeas_style_intro(article: SourceArticle) -> str:
+    title_hint = article.title.replace("How to ", "").replace("Guide", "").strip()
+    description = article.description.strip().rstrip(".")
+    parts = [
+        f"Here is a quieter Write.as adaptation of my original Wappkit article about `{title_hint}`.",
+    ]
+    if description:
+        parts.append(description + ".")
+    parts.append("I kept the useful parts, simplified the framing, and turned it into a more standalone note for readers who prefer a cleaner writing space.")
+    return "\n\n".join(parts)
+
+
 def _platform_section_heading(platform_name: str) -> str:
     if platform_name == "DEV.to":
         return "Practical takeaway"
@@ -562,6 +660,8 @@ def _platform_section_heading(platform_name: str) -> str:
         return "Tradeoffs to keep in mind"
     if platform_name == "Tumblr":
         return "Why this matters"
+    if platform_name == "Write.as":
+        return "What stood out"
     raise ValueError(f"Unsupported platform section heading for {platform_name}")
 
 
@@ -604,6 +704,15 @@ def _build_platform_section(article: SourceArticle, platform_name: str) -> str:
             f"`{topic}` gets more useful when you treat it as a framing signal, not just another content template.",
             "That is the Tumblr angle here: what stands out, what feels real, and what deserves a second look before it gets flattened into generic advice.",
             "If the main site version is the full reference, this version is the sharper note about what matters first.",
+        ]
+        return "\n".join(lines)
+    if platform_name == "Write.as":
+        lines = [
+            "## What stood out",
+            "",
+            f"`{topic}` works best when it is reduced to the clearest useful idea instead of being padded into a bigger marketing frame.",
+            f"If I had to keep only one thing from this piece, it would be this: {description.lower() if description else 'stay close to the useful signal and remove the extra noise'}.",
+            "That is why this version is intentionally simpler and more direct than a typical product blog post.",
         ]
         return "\n".join(lines)
     raise ValueError(f"Unsupported platform section builder for {platform_name}")

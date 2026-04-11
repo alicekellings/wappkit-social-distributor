@@ -145,6 +145,10 @@ class Config:
     tumblr_publish_status: str = "draft"
     tumblr_default_tags: list[str] | None = None
     tumblr_require_llm_for_publication: bool = True
+    writeas_base_url: str = "https://write.as"
+    writeas_font: str = "serif"
+    writeas_language: str = "en"
+    writeas_require_llm_for_publication: bool = False
     use_public_api_pool: bool = False
     public_api_list_file: Path | None = None
     public_api_list_url: str | None = None
@@ -210,6 +214,10 @@ class Config:
         if mastodon_visibility not in {"public", "unlisted", "private", "direct"}:
             mastodon_visibility = "unlisted"
 
+        writeas_font = os.getenv("WRITEAS_FONT", "serif").strip().lower()
+        if writeas_font not in {"sans", "serif", "norm", "wrap", "mono", "code"}:
+            writeas_font = "serif"
+
         return cls(
             root_dir=root_dir,
             secret_config_path=secret_config_path,
@@ -261,6 +269,10 @@ class Config:
             tumblr_publish_status=tumblr_publish_status,
             tumblr_default_tags=_split_csv(os.getenv("TUMBLR_DEFAULT_TAGS", "wappkit,blog,software")),
             tumblr_require_llm_for_publication=_env_bool("TUMBLR_REQUIRE_LLM_FOR_PUBLICATION", True),
+            writeas_base_url=os.getenv("WRITEAS_BASE_URL", "https://write.as").rstrip("/"),
+            writeas_font=writeas_font,
+            writeas_language=os.getenv("WRITEAS_LANGUAGE", "en").strip().lower() or "en",
+            writeas_require_llm_for_publication=_env_bool("WRITEAS_REQUIRE_LLM_FOR_PUBLICATION", False),
             use_public_api_pool=_env_bool("USE_PUBLIC_API_POOL", False),
             public_api_list_file=(root_dir / public_api_list_file_raw).resolve() if public_api_list_file_raw else None,
             public_api_list_url=os.getenv("PUBLIC_API_LIST_URL") or None,

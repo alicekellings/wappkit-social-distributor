@@ -87,6 +87,19 @@ This file tracks which external distribution platforms are already wired into `w
     - tracked repo config now prefers `TUMBLR_*_OBF`
     - current live result was `Draft created on Tumblr`, so the publication chain is already confirmed working
 
+- `Write.as Anonymous`
+  - Type: minimalist long-form note
+  - Auth: none for anonymous publishing
+  - Status: publishing code added; pending first live production publish
+  - Current target: `https://write.as/`
+  - Credential entry: none
+  - Main env vars: `WRITEAS_BASE_URL`, `WRITEAS_FONT`, `WRITEAS_LANGUAGE`, `WRITEAS_REQUIRE_LLM_FOR_PUBLICATION`
+  - Notes:
+    - current implementation uses anonymous `POST /api/posts`
+    - anonymous posts publish immediately; there is no draft state
+    - Write.as returns a post-specific modify token; the worker stores it in the delivery database `platform_state` field for later recovery
+    - `verify-platforms --platform writeas` checks the harmless markdown render endpoint instead of creating a real post
+
 ## Evaluated But Not Integrated Yet
 
 - `WordPress self-hosted`
@@ -111,3 +124,4 @@ For Wappkit right now, the most practical publishing stack is:
 3. `WordPress.com`
 4. `Mastodon`
 5. `Tumblr`
+6. `Write.as Anonymous`

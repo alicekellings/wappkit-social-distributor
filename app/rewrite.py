@@ -23,5 +23,6 @@ BloggerRewriter = _MODULE.BloggerRewriter
 WordpressRewriter = _MODULE.WordpressRewriter
 MastodonRewriter = _MODULE.MastodonRewriter
 TumblrRewriter = _MODULE.TumblrRewriter
+WriteasRewriter = _MODULE.WriteasRewriter
 
-__all__ = ["DevtoRewriter", "BloggerRewriter", "WordpressRewriter", "MastodonRewriter", "TumblrRewriter"]
+__all__ = ["DevtoRewriter", "BloggerRewriter", "WordpressRewriter", "MastodonRewriter", "TumblrRewriter", "WriteasRewriter"]

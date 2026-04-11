@@ -29,6 +29,7 @@ The next integrated targets are:
 - `WordPress.com`
 - `Mastodon`
 - `Tumblr`
+- `Write.as Anonymous`
 
 ## Phase 1 Scope
 
@@ -42,6 +43,7 @@ The next integrated targets are:
 - optionally rewrite and publish to `WordPress.com`
 - optionally rewrite and publish short social posts to `Mastodon`
 - optionally rewrite and publish adapted drafts to `Tumblr`
+- optionally rewrite and anonymously publish a minimalist copy to `Write.as`
 - persist delivery history in SQLite
 
 ## Rewrite Routing
@@ -89,6 +91,10 @@ Current enforced angle strategy:
   - internet-native note / curated digest angle
   - emphasize what stood out, why it matters, and what deserves attention next
   - require a platform-native section such as `Why this matters`
+- `Write.as`
+  - minimalist essay / quiet-note angle
+  - emphasize clarity, reflection, and the most useful signal without extra product framing
+  - require a platform-native section such as `What stood out`
 
 Implementation notes:
 
@@ -129,6 +135,7 @@ python -m app.main run-blogger-once --slug choosing-a-clean-tool-structure-for-w
 python -m app.main run-wordpress-once --dry-run
 python -m app.main run-mastodon-once --dry-run
 python -m app.main run-tumblr-once --dry-run
+python -m app.main run-writeas-once --dry-run
 python -m app.main run-selected-once --dry-run
 python -m app.main verify-platforms
 ```
@@ -158,9 +165,30 @@ DELIVERY_PLATFORMS=devto
 DELIVERY_PLATFORMS=devto,blogger,wordpress
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr
+DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr,writeas
 ```
 
 The worker now runs all selected platforms in sequence during each cycle.
+
+## Write.as Anonymous Setup
+
+Required env vars:
+
+- none
+
+Optional env vars:
+
+- `WRITEAS_BASE_URL` default `https://write.as`
+- `WRITEAS_FONT` default `serif`
+- `WRITEAS_LANGUAGE` default `en`
+- `WRITEAS_REQUIRE_LLM_FOR_PUBLICATION` default `0`
+
+Notes:
+
+- the current implementation uses anonymous `POST /api/posts`
+- anonymous Write.as posts publish immediately; there is no draft state in this flow
+- the API returns a per-post modify `token`; the worker stores that token in the delivery database `platform_state` field so the post can be updated or deleted later if needed
+- `verify-platforms --platform writeas` uses the harmless `POST /api/markdown` endpoint to confirm the target API is reachable without creating a post
 
 ## Blogger Setup
 

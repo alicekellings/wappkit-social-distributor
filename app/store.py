@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,7 @@ class DeliveryStore:
                     status TEXT NOT NULL,
                     external_id TEXT,
                     external_url TEXT,
+                    platform_state TEXT,
                     attempts INTEGER NOT NULL DEFAULT 0,
                     last_error TEXT,
                     created_at TEXT NOT NULL,
@@ -42,6 +44,12 @@ class DeliveryStore:
                 )
                 """
             )
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(deliveries)").fetchall()
+            }
+            if "platform_state" not in columns:
+                conn.execute("ALTER TABLE deliveries ADD COLUMN platform_state TEXT")
             conn.commit()
 
     def has_success(self, platform: str, source_slug: str) -> bool:
@@ -98,8 +106,16 @@ class DeliveryStore:
         source_slug: str,
         external_id: str,
         external_url: str,
+        platform_state: dict | str | None = None,
     ) -> None:
         now = utc_now()
+        serialized_state: str | None = None
+        if platform_state is not None:
+            serialized_state = (
+                platform_state
+                if isinstance(platform_state, str)
+                else json.dumps(platform_state, ensure_ascii=False)
+            )
         with self._connect() as conn:
             conn.execute(
                 """
@@ -107,11 +123,12 @@ class DeliveryStore:
                 SET status = 'success',
                     external_id = ?,
                     external_url = ?,
+                    platform_state = ?,
                     last_error = NULL,
                     updated_at = ?
                 WHERE platform = ? AND source_slug = ?
                 """,
-                (external_id, external_url, now, platform, source_slug),
+                (external_id, external_url, serialized_state, now, platform, source_slug),
             )
             conn.commit()
 

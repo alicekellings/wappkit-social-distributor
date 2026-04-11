@@ -11,9 +11,10 @@ from app.platforms.blogger import BloggerPublisher
 from app.platforms.devto import DevtoPublisher
 from app.platforms.mastodon import MastodonPublisher
 from app.platforms.tumblr import TumblrPublisher
+from app.platforms.writeas import WriteasPublisher
 from app.platforms.wordpress_com import WordpressComPublisher
 from app.platform_health import verify_platforms as run_platform_verifications
-from app.rewrite import BloggerRewriter, DevtoRewriter, MastodonRewriter, TumblrRewriter, WordpressRewriter
+from app.rewrite import BloggerRewriter, DevtoRewriter, MastodonRewriter, TumblrRewriter, WordpressRewriter, WriteasRewriter
 from app.source_loader import load_source_article
 from app.store import DeliveryStore
 from app.blogger_oauth import (
@@ -34,7 +35,7 @@ from app.tumblr_oauth import (
 )
 
 
-SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr")
+SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr", "writeas")
 
 
 def describe_rewrite_mode(rewritten) -> str:
@@ -67,7 +68,8 @@ def log_runtime_config_summary(config: Config) -> None:
         f"wordpress_site={config.wordpress_site or 'missing'} "
         f"mastodon_access_token={'yes' if bool(config.mastodon_access_token) else 'no'} "
         f"tumblr_access_token={'yes' if bool(config.tumblr_access_token) else 'no'} "
-        f"tumblr_blog_identifier={config.tumblr_blog_identifier or 'missing'}"
+        f"tumblr_blog_identifier={config.tumblr_blog_identifier or 'missing'} "
+        f"writeas_base_url={config.writeas_base_url}"
     )
 
 
@@ -97,6 +99,7 @@ def run_selected_platforms_once(
         "wordpress": run_wordpress_once,
         "mastodon": run_mastodon_once,
         "tumblr": run_tumblr_once,
+        "writeas": run_writeas_once,
     }
     results: dict[str, int] = {}
     for platform in selected:
@@ -447,6 +450,80 @@ def run_tumblr_once(config: Config, slug: str | None, dry_run: bool) -> int:
     return processed
 
 
+def run_writeas_once(config: Config, slug: str | None, dry_run: bool) -> int:
+    config.ensure_runtime_dirs()
+    store = DeliveryStore(config.database_path)
+    publisher = WriteasPublisher(config)
+    rewriter = WriteasRewriter(config)
+
+    if slug:
+        candidates = [get_candidate_by_slug(config, slug)]
+    else:
+        candidates = discover_articles(config, limit=max(config.max_articles_per_run * 3, 10))
+
+    processed = 0
+    skipped_success = 0
+
+    for candidate in candidates:
+        if not slug and store.has_success("writeas", candidate.slug):
+            skipped_success += 1
+            continue
+
+        click.echo(f"Preparing Write.as delivery for: {candidate.slug}")
+        source = load_source_article(config, candidate)
+        store.mark_attempt(
+            platform="writeas",
+            source_slug=candidate.slug,
+            source_url=candidate.url,
+            title=source.title,
+            source_updated_at=candidate.last_modified,
+        )
+
+        try:
+            rewritten = rewriter.rewrite(source)
+            click.echo(f"Rewrite mode: {describe_rewrite_mode(rewritten)}")
+            if rewriter.last_provider_label:
+                click.echo(f"Rewrite model: {rewriter.last_provider_label}")
+            if rewritten.rewrite_source != "llm" and config.writeas_require_llm_for_publication:
+                click.secho(
+                    "Rewrite fallback detected; Write.as anonymous delivery requires an llm rewrite for safety.",
+                    fg="yellow",
+                )
+            if dry_run:
+                preview_path = publisher.save_preview(
+                    rewritten,
+                    source,
+                    config.outputs_dir / "previews",
+                )
+                click.secho(f"Dry-run preview saved to: {preview_path}", fg="green")
+            else:
+                result = publisher.publish(rewritten, source)
+                store.mark_success(
+                    "writeas",
+                    candidate.slug,
+                    result.external_id,
+                    result.url or "",
+                    platform_state=publisher.extract_state(result),
+                )
+                click.secho(
+                    f"Published to Write.as: {result.url or result.external_id} "
+                    f"(rewrite={describe_rewrite_mode(rewritten)})",
+                    fg="green",
+                )
+
+            processed += 1
+            if processed >= config.max_articles_per_run:
+                break
+        except Exception as exc:
+            store.mark_failure("writeas", candidate.slug, str(exc))
+            click.secho(f"Write.as delivery failed for {candidate.slug}: {exc}", fg="red")
+            if slug:
+                raise
+
+    _log_skip_summary("Write.as", skipped_success, len(candidates), processed)
+    return processed
+
+
 @click.group()
 def cli() -> None:
     """Wappkit social distributor CLI."""
@@ -615,6 +692,15 @@ def run_mastodon_once_command(slug: str | None, dry_run: bool) -> None:
 def run_tumblr_once_command(slug: str | None, dry_run: bool) -> None:
     config = Config.load()
     processed = run_tumblr_once(config, slug=slug, dry_run=dry_run)
+    click.echo(f"Processed {processed} article(s).")
+
+
+@cli.command("run-writeas-once")
+@click.option("--slug", default=None, help="Force a specific blog slug.")
+@click.option("--dry-run", is_flag=True, default=False, help="Generate preview files without publishing.")
+def run_writeas_once_command(slug: str | None, dry_run: bool) -> None:
+    config = Config.load()
+    processed = run_writeas_once(config, slug=slug, dry_run=dry_run)
     click.echo(f"Processed {processed} article(s).")
 
 

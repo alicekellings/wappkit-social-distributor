@@ -8,10 +8,11 @@ from app.blogger_oauth import verify_access_token as verify_blogger_access_token
 from app.config import Config
 from app.platforms.blogger import BloggerPublisher
 from app.platforms.tumblr import TumblrPublisher
+from app.platforms.writeas import WriteasPublisher
 from app.tumblr_oauth import verify_access_token as verify_tumblr_access_token
 
 
-SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr")
+SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr", "writeas")
 
 
 @dataclass(slots=True)
@@ -42,6 +43,7 @@ def verify_platforms(config: Config, platforms: list[str] | None = None) -> list
         "wordpress": _verify_wordpress,
         "mastodon": _verify_mastodon,
         "tumblr": _verify_tumblr,
+        "writeas": _verify_writeas,
     }
     return [checks[platform](config) for platform in selected]
 
@@ -194,3 +196,27 @@ def _verify_tumblr(config: Config) -> PlatformVerificationResult:
         )
     except Exception as exc:
         return PlatformVerificationResult("tumblr", False, str(exc))
+
+
+def _verify_writeas(config: Config) -> PlatformVerificationResult:
+    publisher = WriteasPublisher(config)
+    try:
+        response = requests.post(
+            f"{publisher.api_root}/markdown",
+            json={"raw_body": "Write.as API probe"},
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            timeout=config.request_timeout_seconds,
+        )
+        response.raise_for_status()
+        data = response.json()
+        body = (data.get("data") or {}).get("body") or ""
+        return PlatformVerificationResult(
+            "writeas",
+            True,
+            f"Anonymous publishing endpoint reachable; rendered_length={len(str(body))}.",
+        )
+    except Exception as exc:
+        return PlatformVerificationResult("writeas", False, str(exc))
