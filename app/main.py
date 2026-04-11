@@ -621,20 +621,12 @@ def tumblr_exchange_code_command(code: str, redirect_uri: str, config_path: str 
 @click.option("--config-path", default=None, help="Optional target secrets file path.")
 def tumblr_refresh_token_command(config_path: str | None) -> None:
     config = Config.load()
-    if not config.tumblr_client_id or not config.tumblr_client_secret or not config.tumblr_refresh_token:
-        raise click.ClickException("TUMBLR_CLIENT_ID, TUMBLR_CLIENT_SECRET, and TUMBLR_REFRESH_TOKEN are required.")
+    publisher = TumblrPublisher(config)
+    if not config.tumblr_client_id or not config.tumblr_client_secret or not publisher._refresh_token():
+        raise click.ClickException("Tumblr refresh requires client id, client secret, and at least one refresh token source.")
 
-    token_data = refresh_tokens(
-        client_id=config.tumblr_client_id,
-        client_secret=config.tumblr_client_secret,
-        refresh_token=config.tumblr_refresh_token,
-        timeout=config.request_timeout_seconds,
-    )
-    access_token = str(token_data.get("access_token") or "").strip()
-    refresh_token = str(token_data.get("refresh_token") or "").strip() or config.tumblr_refresh_token
-    if not access_token:
-        raise click.ClickException("Tumblr refresh returned no access_token.")
-
+    access_token = publisher._refresh_access_token()
+    refresh_token = publisher._refresh_token()
     info = verify_access_token(access_token, timeout=config.request_timeout_seconds)
     user_name = (
         (((info.get("response") or {}).get("user") or {}).get("name"))
