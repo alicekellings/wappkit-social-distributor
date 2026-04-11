@@ -130,6 +130,7 @@ python -m app.main run-wordpress-once --dry-run
 python -m app.main run-mastodon-once --dry-run
 python -m app.main run-tumblr-once --dry-run
 python -m app.main run-selected-once --dry-run
+python -m app.main verify-platforms
 ```
 
 ## Railway Without Variable Manager
@@ -369,9 +370,10 @@ If Railway variables become too noisy, use a single JSON file instead.
 Supported lookup order:
 
 1. path from `WAPPKIT_CONFIG_FILE` if you set it
-2. `[config.secrets.json](./config.secrets.json)` in the repo root
-3. `local-secrets/wappkit-secrets.json`
-4. `/data/wappkit-secrets.json`
+2. `[railway.secrets.json](./railway.secrets.json)` in the repo root
+3. `[config.secrets.json](./config.secrets.json)` in the repo root
+4. `local-secrets/wappkit-secrets.json`
+5. `/data/wappkit-secrets.json`
 
 Recommended live path on Railway:
 
@@ -445,3 +447,20 @@ Recommended Railway secret habits:
 - for secrets with problematic special characters, prefer a base64 env input and decode in app code
 - this repo currently supports base64 env inputs for both `WORDPRESS_ACCESS_TOKEN_B64` and `MASTODON_ACCESS_TOKEN_B64`
 - this repo also supports `TUMBLR_ACCESS_TOKEN_B64` and `TUMBLR_REFRESH_TOKEN_B64`
+
+## Runtime Verification
+
+Use the built-in verification command to confirm the current config can authenticate against each selected platform without publishing a new post:
+
+```bash
+python -m app.main verify-platforms
+python -m app.main verify-platforms --platform blogger --platform tumblr
+```
+
+Verification behavior:
+
+- `DEV.to`: reads your private article list
+- `Blogger`: validates the current token and falls back to refresh when needed, then resolves the blog id
+- `WordPress.com`: reads account and site metadata
+- `Mastodon`: verifies account credentials
+- `Tumblr`: validates the current token and falls back to refresh when needed, then reads blog info

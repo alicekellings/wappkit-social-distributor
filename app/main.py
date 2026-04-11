@@ -12,6 +12,7 @@ from app.platforms.devto import DevtoPublisher
 from app.platforms.mastodon import MastodonPublisher
 from app.platforms.tumblr import TumblrPublisher
 from app.platforms.wordpress_com import WordpressComPublisher
+from app.platform_health import verify_platforms as run_platform_verifications
 from app.rewrite import BloggerRewriter, DevtoRewriter, MastodonRewriter, TumblrRewriter, WordpressRewriter
 from app.source_loader import load_source_article
 from app.store import DeliveryStore
@@ -537,6 +538,29 @@ def discover(limit: int) -> None:
     candidates = discover_articles(config, limit=limit)
     for candidate in candidates:
         click.echo(f"{candidate.slug} | {candidate.last_modified or 'n/a'} | {candidate.url}")
+
+
+@cli.command("verify-platforms")
+@click.option("--platform", "platforms", multiple=True, help="Platform(s) to verify; defaults to DELIVERY_PLATFORMS.")
+def verify_platforms_command(platforms: tuple[str, ...]) -> None:
+    config = Config.load()
+    selected = normalize_platforms(list(platforms) if platforms else config.delivery_platforms)
+    log_runtime_config_summary(config)
+    results = run_platform_verifications(config, selected)
+    failures = 0
+
+    for result in results:
+        status = "OK" if result.ok else "FAIL"
+        refresh_note = " refreshed" if result.used_refresh else ""
+        color = "green" if result.ok else "red"
+        click.secho(f"[{status}] {result.platform}{refresh_note}: {result.detail}", fg=color)
+        if not result.ok:
+            failures += 1
+
+    if failures:
+        raise click.ClickException(f"{failures} platform verification(s) failed.")
+
+    click.echo(f"Verified {len(results)} platform(s) successfully.")
 
 
 @cli.command("run-once")
