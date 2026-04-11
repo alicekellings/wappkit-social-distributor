@@ -12,6 +12,8 @@ from app.models import PublishResult, RewrittenArticle, SourceArticle
 
 
 class TumblrPublisher:
+    MAX_TEXT_CHARS = 3800
+
     def __init__(self, config: Config) -> None:
         self.config = config
         self.api_root = "https://api.tumblr.com/v2"
@@ -26,7 +28,7 @@ class TumblrPublisher:
             "content": [
                 {
                     "type": "text",
-                    "text": self._build_text_body(rewritten),
+                    "text": self._build_text_body(rewritten, source),
                 }
             ],
             "state": state,
@@ -68,12 +70,31 @@ class TumblrPublisher:
         payload_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return preview_path
 
-    def _build_text_body(self, rewritten: RewrittenArticle) -> str:
+    def _build_text_body(self, rewritten: RewrittenArticle, source: SourceArticle) -> str:
         title = (rewritten.title or "").strip()
         body = _markdown_to_tumblr_text(rewritten.body_markdown)
         if title and not body.lower().startswith(title.lower()):
-            return f"{title}\n\n{body}".strip()
-        return body
+            body = f"{title}\n\n{body}".strip()
+        return self._fit_text_limit(body, source)
+
+    def _fit_text_limit(self, body: str, source: SourceArticle) -> str:
+        if len(body) <= self.MAX_TEXT_CHARS:
+            return body
+
+        canonical_url = source.canonical_url or source.candidate.url
+        suffix = f"\n\nRead the full article on Wappkit: {canonical_url}"
+        ellipsis = "..."
+        budget = max(self.MAX_TEXT_CHARS - len(suffix) - len(ellipsis), 200)
+        trimmed = body[:budget].rstrip()
+
+        paragraph_cut = trimmed.rfind("\n\n")
+        if paragraph_cut >= int(budget * 0.6):
+            trimmed = trimmed[:paragraph_cut].rstrip()
+
+        if not trimmed.endswith(("...", "…")):
+            trimmed = trimmed.rstrip(". ") + ellipsis
+
+        return f"{trimmed}{suffix}"
 
     def _build_post_url(self, response_data: dict) -> str | None:
         blog = self._normalized_blog_identifier()

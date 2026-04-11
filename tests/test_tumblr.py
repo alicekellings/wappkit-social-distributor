@@ -281,3 +281,24 @@ def test_tumblr_retries_transient_post_errors(tmp_path: Path, monkeypatch) -> No
 
     assert result.external_id == "123"
     assert attempts["count"] == 3
+
+
+def test_tumblr_build_payload_trims_long_text_to_safe_limit(tmp_path: Path) -> None:
+    config = build_config(tmp_path)
+    publisher = TumblrPublisher(config)
+    source = build_source_article()
+    rewritten = RewrittenArticle(
+        title="Long demo",
+        description="Long description",
+        body_markdown="Paragraph start. " * 500,
+        tags=["wappkit"],
+        rewrite_source="fallback",
+        rewrite_strength="minimal",
+    )
+
+    payload = publisher.build_payload(rewritten, source)
+    text = payload["content"][0]["text"]
+
+    assert len(text) <= publisher.MAX_TEXT_CHARS
+    assert "Read the full article on Wappkit:" in text
+    assert source.canonical_url in text
