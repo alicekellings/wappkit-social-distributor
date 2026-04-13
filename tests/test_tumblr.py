@@ -235,6 +235,28 @@ def test_tumblr_refresh_falls_back_to_config_refresh_token_when_cached_one_is_in
     assert publisher._token_state["refresh_token"] == "new-refresh-token"
 
 
+def test_tumblr_refresh_uses_newly_persisted_state_without_refreshing_again(tmp_path: Path) -> None:
+    config = build_config(tmp_path)
+    config.data_dir.mkdir(parents=True, exist_ok=True)
+    state_file = config.data_dir / "tumblr-oauth.json"
+    state_file.write_text(
+        '{"access_token":"old-access","refresh_token":"old-refresh"}',
+        encoding="utf-8",
+    )
+    publisher = TumblrPublisher(config)
+    publisher._token_state = {"access_token": "old-access", "refresh_token": "old-refresh"}
+
+    state_file.write_text(
+        '{"access_token":"fresh-access","refresh_token":"fresh-refresh"}',
+        encoding="utf-8",
+    )
+
+    token = publisher._refresh_access_token()
+
+    assert token == "fresh-access"
+    assert publisher._token_state["refresh_token"] == "fresh-refresh"
+
+
 def test_tumblr_retries_transient_post_errors(tmp_path: Path, monkeypatch) -> None:
     config = build_config(tmp_path)
     publisher = TumblrPublisher(config)

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import requests
@@ -13,12 +15,15 @@ from app.models import PublishResult, RewrittenArticle, SourceArticle
 
 class TumblrPublisher:
     MAX_TEXT_CHARS = 3800
+    refresh_lock_timeout_seconds = 15
+    refresh_lock_poll_seconds = 0.2
 
     def __init__(self, config: Config) -> None:
         self.config = config
         self.api_root = "https://api.tumblr.com/v2"
         self.token_url = f"{self.api_root}/oauth2/token"
         self.token_state_path = self.config.data_dir / "tumblr-oauth.json"
+        self.token_lock_path = self.config.data_dir / "tumblr-oauth.lock"
         self._token_state = self._load_token_state()
         self._bootstrap_token_state()
 
@@ -166,48 +171,57 @@ class TumblrPublisher:
         if not refresh_token or not self.config.tumblr_client_id or not self.config.tumblr_client_secret:
             raise ValueError("Tumblr token refresh requires client id, client secret, and refresh token.")
 
-        tried_tokens: list[str] = []
-        candidate_tokens: list[str] = []
-        if refresh_token:
-            candidate_tokens.append(refresh_token)
-        config_refresh = self.config.tumblr_refresh_token
-        if config_refresh and config_refresh not in candidate_tokens:
-            candidate_tokens.append(config_refresh)
+        prior_state = dict(self._token_state)
+        with self._token_refresh_lock():
+            latest_state = self._load_token_state()
+            if latest_state:
+                self._token_state = latest_state
+            if self._state_changed(prior_state, self._token_state):
+                latest_access_token = self._token_state.get("access_token")
+                if latest_access_token:
+                    return latest_access_token
 
-        last_error: Exception | None = None
-        data: dict | None = None
-        for candidate in candidate_tokens:
-            tried_tokens.append(candidate)
-            response = requests.post(
-                self.token_url,
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": candidate,
-                    "client_id": self.config.tumblr_client_id,
-                    "client_secret": self.config.tumblr_client_secret,
-                },
-                timeout=self.config.request_timeout_seconds,
-            )
-            try:
-                self._raise_for_status_with_details(response)
-                data = response.json()
-                self._token_state["refresh_token"] = candidate
-                break
-            except requests.HTTPError as exc:
-                last_error = exc
-                detail = str(exc)
-                if "invalid_grant" not in detail:
-                    raise
-        if data is None:
-            if last_error:
-                raise last_error
-            raise ValueError("Tumblr token refresh failed with no response data.")
+            candidate_tokens: list[str] = []
+            refreshed_token = self._refresh_token()
+            if refreshed_token:
+                candidate_tokens.append(refreshed_token)
+            config_refresh = self.config.tumblr_refresh_token
+            if config_refresh and config_refresh not in candidate_tokens:
+                candidate_tokens.append(config_refresh)
 
-        self._token_state["access_token"] = str(data.get("access_token") or "")
-        if data.get("refresh_token"):
-            self._token_state["refresh_token"] = str(data["refresh_token"])
-        self._save_token_state()
-        return self._token_state["access_token"]
+            last_error: Exception | None = None
+            data: dict | None = None
+            for candidate in candidate_tokens:
+                response = requests.post(
+                    self.token_url,
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": candidate,
+                        "client_id": self.config.tumblr_client_id,
+                        "client_secret": self.config.tumblr_client_secret,
+                    },
+                    timeout=self.config.request_timeout_seconds,
+                )
+                try:
+                    self._raise_for_status_with_details(response)
+                    data = response.json()
+                    self._token_state["refresh_token"] = candidate
+                    break
+                except requests.HTTPError as exc:
+                    last_error = exc
+                    detail = str(exc)
+                    if "invalid_grant" not in detail:
+                        raise
+            if data is None:
+                if last_error:
+                    raise last_error
+                raise ValueError("Tumblr token refresh failed with no response data.")
+
+            self._token_state["access_token"] = str(data.get("access_token") or "")
+            if data.get("refresh_token"):
+                self._token_state["refresh_token"] = str(data["refresh_token"])
+            self._save_token_state()
+            return self._token_state["access_token"]
 
     def _load_token_state(self) -> dict[str, str]:
         if not self.token_state_path.exists():
@@ -239,6 +253,35 @@ class TumblrPublisher:
     def _save_token_state(self) -> None:
         self.token_state_path.parent.mkdir(parents=True, exist_ok=True)
         self.token_state_path.write_text(json.dumps(self._token_state, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    @contextmanager
+    def _token_refresh_lock(self):
+        self.token_lock_path.parent.mkdir(parents=True, exist_ok=True)
+        deadline = time.monotonic() + self.refresh_lock_timeout_seconds
+        handle: int | None = None
+        while time.monotonic() < deadline:
+            try:
+                handle = os.open(str(self.token_lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(handle, str(os.getpid()).encode("ascii", "ignore"))
+                break
+            except FileExistsError:
+                time.sleep(self.refresh_lock_poll_seconds)
+        if handle is None:
+            raise TimeoutError(f"Timed out waiting for Tumblr token refresh lock: {self.token_lock_path}")
+        try:
+            yield
+        finally:
+            try:
+                os.close(handle)
+            except OSError:
+                pass
+            try:
+                self.token_lock_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    def _state_changed(self, previous: dict[str, str], current: dict[str, str]) -> bool:
+        return any(previous.get(key) != current.get(key) for key in ("access_token", "refresh_token"))
 
     def _raise_for_status_with_details(self, response: requests.Response) -> None:
         try:

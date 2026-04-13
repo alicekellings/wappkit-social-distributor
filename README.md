@@ -141,7 +141,6 @@ python -m app.main run-blogger-once --slug choosing-a-clean-tool-structure-for-w
 python -m app.main run-wordpress-once --dry-run
 python -m app.main run-mastodon-once --dry-run
 python -m app.main run-tumblr-once --dry-run
-python -m app.main run-gitbook-once --dry-run
 python -m app.main run-writeas-once --dry-run
 python -m app.main run-selected-once --dry-run
 python -m app.main verify-platforms
@@ -172,33 +171,10 @@ DELIVERY_PLATFORMS=devto
 DELIVERY_PLATFORMS=devto,blogger,wordpress
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr
-DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr,gitbook
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr,writeas
 ```
 
 The worker now runs all selected platforms in sequence during each cycle.
-
-## GitBook Setup
-
-Required env vars:
-
-- `GITBOOK_TOKEN`
-- `GITBOOK_ORG_ID`
-- `GITBOOK_SITE_ID`
-
-Optional env vars:
-
-- `GITBOOK_PUBLISH_STATUS` default `published`
-- `GITBOOK_HIDDEN` default `0`
-- `GITBOOK_IMPORT_ENHANCE` default `0`
-
-Notes:
-
-- the current implementation uses the real GitBook API
-- it creates a dedicated temporary space, imports the public source article URL, attaches that space to the configured site, and publishes it visibly by default
-- `python -m app.main run-gitbook-once --dry-run` writes the import manifest without publishing
-- `python -m app.main run-gitbook-once` performs a live import and site publish
-- `verify-platforms --platform gitbook` checks the token, site access, and current site-space listing without creating content
 
 ## Write.as Anonymous Setup
 

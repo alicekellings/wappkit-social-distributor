@@ -1,6 +1,7 @@
 from app.config import Config
 from app.models import ArticleCandidate, RewrittenArticle, SourceArticle
 from app.platforms.devto import DevtoPublisher
+import requests
 
 
 def build_config(tmp_path):
@@ -98,3 +99,65 @@ def test_build_payload_forces_draft_when_fallback_rewrite(tmp_path) -> None:
     payload = publisher.build_payload(rewritten, source)
 
     assert payload["article"]["published"] is False
+
+
+def test_publish_reuses_existing_article_when_canonical_url_exists(tmp_path, monkeypatch) -> None:
+    config = build_config(tmp_path)
+    publisher = DevtoPublisher(config)
+    source = SourceArticle(
+        candidate=ArticleCandidate(slug="demo", url="https://www.wappkit.com/blog/demo"),
+        title="Demo",
+        description="Demo description",
+        markdown="Hello",
+        canonical_url="https://www.wappkit.com/blog/demo",
+    )
+    rewritten = RewrittenArticle(
+        title="Demo",
+        description="Demo description",
+        body_markdown="Hello",
+        tags=["wappkit"],
+        rewrite_source="fallback",
+        rewrite_strength="minimal",
+    )
+
+    class DummyResponse:
+        def __init__(self, status_code: int, data):
+            self.status_code = status_code
+            self._data = data
+            self.text = str(data)
+
+        def json(self):
+            return self._data
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests.HTTPError(f"{self.status_code} error", response=self)
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        return DummyResponse(
+            422,
+            {"error": "Canonical url has already been taken. Email support@dev.to for further details."},
+        )
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        assert params == {"per_page": 100, "page": 1}
+        return DummyResponse(
+            200,
+            [
+                {
+                    "id": 123,
+                    "canonical_url": "https://www.wappkit.com/blog/demo",
+                    "url": "https://dev.to/example/demo-123",
+                    "published": False,
+                }
+            ],
+        )
+
+    monkeypatch.setattr("app.platforms.devto.requests.post", fake_post)
+    monkeypatch.setattr("app.platforms.devto.requests.get", fake_get)
+
+    result = publisher.publish(rewritten, source)
+
+    assert result.external_id == "123"
+    assert result.url == "https://dev.to/example/demo-123"
+    assert result.is_draft is True

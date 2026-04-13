@@ -9,7 +9,6 @@ from app.config import Config, resolve_secret_config_path
 from app.discovery import discover_articles, get_candidate_by_slug
 from app.platforms.blogger import BloggerPublisher
 from app.platforms.devto import DevtoPublisher
-from app.platforms.gitbook import GitbookPublisher
 from app.platforms.mastodon import MastodonPublisher
 from app.platforms.tumblr import TumblrPublisher
 from app.platforms.writeas import WriteasPublisher
@@ -36,7 +35,7 @@ from app.tumblr_oauth import (
 )
 
 
-SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr", "gitbook", "writeas")
+SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr", "writeas")
 
 
 def describe_rewrite_mode(rewritten) -> str:
@@ -70,7 +69,6 @@ def log_runtime_config_summary(config: Config) -> None:
         f"mastodon_access_token={'yes' if bool(config.mastodon_access_token) else 'no'} "
         f"tumblr_access_token={'yes' if bool(config.tumblr_access_token) else 'no'} "
         f"tumblr_blog_identifier={config.tumblr_blog_identifier or 'missing'} "
-        f"gitbook_site_id={config.gitbook_site_id or 'missing'} "
         f"writeas_base_url={config.writeas_base_url}"
     )
 
@@ -101,7 +99,6 @@ def run_selected_platforms_once(
         "wordpress": run_wordpress_once,
         "mastodon": run_mastodon_once,
         "tumblr": run_tumblr_once,
-        "gitbook": run_gitbook_once,
         "writeas": run_writeas_once,
     }
     results: dict[str, int] = {}
@@ -453,68 +450,6 @@ def run_tumblr_once(config: Config, slug: str | None, dry_run: bool) -> int:
     return processed
 
 
-def run_gitbook_once(config: Config, slug: str | None, dry_run: bool) -> int:
-    config.ensure_runtime_dirs()
-    store = DeliveryStore(config.database_path)
-    publisher = GitbookPublisher(config)
-
-    if slug:
-        candidates = [get_candidate_by_slug(config, slug)]
-    else:
-        candidates = discover_articles(config, limit=max(config.max_articles_per_run * 3, 10))
-
-    processed = 0
-    skipped_success = 0
-
-    for candidate in candidates:
-        if not slug and store.has_success("gitbook", candidate.slug):
-            skipped_success += 1
-            continue
-
-        click.echo(f"Preparing GitBook delivery for: {candidate.slug}")
-        source = load_source_article(config, candidate)
-        store.mark_attempt(
-            platform="gitbook",
-            source_slug=candidate.slug,
-            source_url=candidate.url,
-            title=source.title,
-            source_updated_at=candidate.last_modified,
-        )
-
-        try:
-            if dry_run:
-                preview_path = publisher.save_preview(source, config.outputs_dir / "previews")
-                click.secho(f"Dry-run preview saved to: {preview_path}", fg="green")
-            else:
-                result = publisher.publish(source)
-                store.mark_success(
-                    "gitbook",
-                    candidate.slug,
-                    result.external_id,
-                    result.url or "",
-                    platform_state=publisher.extract_state(result),
-                )
-                if result.is_draft:
-                    click.secho(
-                        f"Draft attached to GitBook: {result.url or result.external_id}",
-                        fg="yellow",
-                    )
-                else:
-                    click.secho(f"Published to GitBook: {result.url or result.external_id}", fg="green")
-
-            processed += 1
-            if processed >= config.max_articles_per_run:
-                break
-        except Exception as exc:
-            store.mark_failure("gitbook", candidate.slug, str(exc))
-            click.secho(f"GitBook delivery failed for {candidate.slug}: {exc}", fg="red")
-            if slug:
-                raise
-
-    _log_skip_summary("GitBook", skipped_success, len(candidates), processed)
-    return processed
-
-
 def run_writeas_once(config: Config, slug: str | None, dry_run: bool) -> int:
     config.ensure_runtime_dirs()
     store = DeliveryStore(config.database_path)
@@ -757,15 +692,6 @@ def run_mastodon_once_command(slug: str | None, dry_run: bool) -> None:
 def run_tumblr_once_command(slug: str | None, dry_run: bool) -> None:
     config = Config.load()
     processed = run_tumblr_once(config, slug=slug, dry_run=dry_run)
-    click.echo(f"Processed {processed} article(s).")
-
-
-@cli.command("run-gitbook-once")
-@click.option("--slug", default=None, help="Force a specific blog slug.")
-@click.option("--dry-run", is_flag=True, default=False, help="Generate preview files without publishing.")
-def run_gitbook_once_command(slug: str | None, dry_run: bool) -> None:
-    config = Config.load()
-    processed = run_gitbook_once(config, slug=slug, dry_run=dry_run)
     click.echo(f"Processed {processed} article(s).")
 
 

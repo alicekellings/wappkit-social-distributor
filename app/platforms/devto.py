@@ -45,7 +45,27 @@ class DevtoPublisher:
             },
             timeout=self.config.request_timeout_seconds,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            detail = self._extract_error_detail(response)
+            canonical_url = (source.canonical_url or "").strip()
+            if canonical_url and self._looks_like_duplicate_canonical_error(detail):
+                existing = self._find_existing_article_by_canonical_url(canonical_url)
+                if existing:
+                    published = bool(existing.get("published"))
+                    existing_url = str(existing.get("url") or "").strip() or None
+                    if not published and existing_url and "temp-slug" in existing_url:
+                        existing_url = None
+                    return PublishResult(
+                        external_id=str(existing.get("id") or ""),
+                        url=existing_url,
+                        is_draft=not published,
+                        raw_response={"existing_article": existing, "reused_due_to": detail},
+                    )
+            if detail:
+                raise requests.HTTPError(f"{exc} | response={detail}", response=response) from exc
+            raise
         data = response.json()
         published = bool(data.get("published"))
         api_url = str(data.get("url") or "").strip() or None
@@ -78,3 +98,47 @@ class DevtoPublisher:
         if self.config.devto_require_llm_for_publication and rewritten.rewrite_source != "llm":
             return False
         return True
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "api-key": self.config.devto_api_key or "",
+            "Accept": "application/vnd.forem.api-v1+json",
+            "Content-Type": "application/json",
+        }
+
+    def _find_existing_article_by_canonical_url(self, canonical_url: str) -> dict | None:
+        page = 1
+        while True:
+            response = requests.get(
+                "https://dev.to/api/articles/me/all",
+                params={"per_page": 100, "page": page},
+                headers=self._headers(),
+                timeout=self.config.request_timeout_seconds,
+            )
+            response.raise_for_status()
+            data = response.json()
+            if not isinstance(data, list) or not data:
+                return None
+            for article in data:
+                if str((article or {}).get("canonical_url") or "").strip() == canonical_url:
+                    return article
+            if len(data) < 100:
+                return None
+            page += 1
+
+    def _extract_error_detail(self, response: requests.Response) -> str:
+        try:
+            data = response.json()
+        except ValueError:
+            return (response.text or "").strip()[:500]
+        if isinstance(data, dict):
+            for key in ("error", "message", "detail"):
+                value = data.get(key)
+                if value:
+                    return str(value)[:500]
+            return json.dumps(data, ensure_ascii=False)[:500]
+        return str(data)[:500]
+
+    def _looks_like_duplicate_canonical_error(self, detail: str) -> bool:
+        normalized = detail.lower()
+        return "canonical url" in normalized and "already been taken" in normalized

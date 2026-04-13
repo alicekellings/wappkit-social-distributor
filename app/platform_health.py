@@ -7,13 +7,12 @@ import requests
 from app.blogger_oauth import verify_access_token as verify_blogger_access_token
 from app.config import Config
 from app.platforms.blogger import BloggerPublisher
-from app.platforms.gitbook import GitbookPublisher
 from app.platforms.tumblr import TumblrPublisher
 from app.platforms.writeas import WriteasPublisher
 from app.tumblr_oauth import verify_access_token as verify_tumblr_access_token
 
 
-SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr", "gitbook", "writeas")
+SUPPORTED_PLATFORMS = ("devto", "blogger", "wordpress", "mastodon", "tumblr", "writeas")
 
 
 @dataclass(slots=True)
@@ -44,7 +43,6 @@ def verify_platforms(config: Config, platforms: list[str] | None = None) -> list
         "wordpress": _verify_wordpress,
         "mastodon": _verify_mastodon,
         "tumblr": _verify_tumblr,
-        "gitbook": _verify_gitbook,
         "writeas": _verify_writeas,
     }
     return [checks[platform](config) for platform in selected]
@@ -222,22 +220,3 @@ def _verify_writeas(config: Config) -> PlatformVerificationResult:
         )
     except Exception as exc:
         return PlatformVerificationResult("writeas", False, str(exc))
-
-
-def _verify_gitbook(config: Config) -> PlatformVerificationResult:
-    publisher = GitbookPublisher(config)
-    try:
-        user = publisher.get_user()
-        site = publisher.get_site()
-        site_spaces = publisher.list_site_spaces()
-        return PlatformVerificationResult(
-            "gitbook",
-            True,
-            (
-                f"Authenticated; user={user.get('displayName') or user.get('email') or 'unknown'} "
-                f"site={site.get('title') or config.gitbook_site_id} "
-                f"site_spaces={len(site_spaces)}."
-            ),
-        )
-    except Exception as exc:
-        return PlatformVerificationResult("gitbook", False, str(exc))
