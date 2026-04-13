@@ -1,23 +1,27 @@
 # Wappkit Social Distributor Tasks
 
-## Phase 1: DEV.to First
+## Current State
 
-- [x] Create a dedicated distribution project directory
-- [x] Define the first-stage architecture around `sitemap -> source -> rewrite -> DEV.to`
-- [x] Add persistent delivery state with SQLite
-- [x] Add source discovery from Wappkit `sitemap.xml`
-- [x] Add source loading from public GitHub raw article files
-- [x] Add webpage extraction fallback
-- [x] Add deterministic `DEV.to` rewrite fallback
-- [x] Add optional AI rewrite path for higher-quality adaptation
-- [x] Add `DEV.to` publishing client
-- [x] Add CLI commands for `discover`, `run-once`, and `worker`
-- [x] Add Docker and environment templates
+- [x] `DEV.to` live publishing integrated
+- [x] `Blogger` live publishing integrated
+- [x] `WordPress.com` live publishing integrated
+- [x] `Mastodon` live publishing integrated
+- [x] `Tumblr` OAuth2 publishing reauthorized and re-stabilized
+- [x] `Write.as` anonymous publishing integrated
+- [x] Multi-platform worker verified on Railway
+- [x] Delivery state persisted in SQLite
+- [x] Secrets can load from a single config file
+- [x] `GitBook` removed from the active platform set
 
-## Immediate Next Checks
+## Operational Follow-Ups
 
-- [ ] Fill `DEVTO_API_KEY`
-- [ ] Run `python -m app.main run-once --dry-run`
-- [ ] Review the generated preview under `outputs/previews/`
-- [ ] Run one real article publish to `DEV.to`
-- [ ] Confirm the article renders correctly on `DEV.to`
+- [ ] Move live secrets out of tracked `railway.secrets.json` into `/data/wappkit-secrets.json` or server-managed secrets when deployment is moved off Railway
+- [ ] Keep `/data/delivery-state.sqlite3` and `/data/tumblr-oauth.json` during any server migration
+- [ ] Re-check `verify-platforms` after every token rotation or deployment environment change
+- [ ] Re-check a real `run-selected-once` after any deployment move
+
+## Known Risk Areas
+
+- [ ] `Tumblr` depends on refresh-token continuity and should not be treated as a permanent static token
+- [ ] `DEV.to` can reject duplicate canonical URLs if local delivery state is missing older post history
+- [ ] Local pytest on this machine may require `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` and `PYTHONPATH=.`

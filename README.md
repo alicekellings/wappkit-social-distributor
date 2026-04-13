@@ -29,7 +29,6 @@ The next integrated targets are:
 - `WordPress.com`
 - `Mastodon`
 - `Tumblr`
-- `GitBook`
 - `Write.as Anonymous`
 
 ## Phase 1 Scope
@@ -44,7 +43,6 @@ The next integrated targets are:
 - optionally rewrite and publish to `WordPress.com`
 - optionally rewrite and publish short social posts to `Mastodon`
 - optionally rewrite and publish adapted drafts to `Tumblr`
-- optionally import the source article into `GitBook` and publish it visibly on the docs site
 - optionally rewrite and anonymously publish a minimalist copy to `Write.as`
 - persist delivery history in SQLite
 
@@ -93,10 +91,6 @@ Current enforced angle strategy:
   - internet-native note / curated digest angle
   - emphasize what stood out, why it matters, and what deserves attention next
   - require a platform-native section such as `Why this matters`
-- `GitBook`
-  - docs-site mirror angle
-  - preserve the original article body by importing the public page into a dedicated GitBook space
-  - publish visibly under the configured site instead of keeping the space hidden
 - `Write.as`
   - minimalist essay / quiet-note angle
   - emphasize clarity, reflection, and the most useful signal without extra product framing
@@ -397,6 +391,66 @@ Recommended Railway setup:
 
 The existing [render.yaml](./render.yaml) can stay as a fallback reference, but Railway is the current live path.
 
+## Operational Notes
+
+Current deployment status as of `2026-04-13`:
+
+- the live worker is running on `Railway`
+- the next deployment target may be a self-managed server, but the runtime assumptions should stay the same
+- the worker expects a persistent writable data directory mounted at `/data`
+
+Recommended future server shape:
+
+- run the worker as a single long-running process
+- mount a persistent directory to `/data`
+- keep runtime secrets in `/data/wappkit-secrets.json` instead of a tracked repo file when possible
+- preserve `/data/delivery-state.sqlite3` and `/data/tumblr-oauth.json` during migrations
+
+## Known Issues And Decisions
+
+- `GitBook` has been removed from this project.
+  - Fresh website import was not stable enough for production.
+  - The old GitBook integration and tests were removed, and it should not be re-enabled without a separate retest cycle.
+
+- `Tumblr` uses rotating OAuth2 tokens and must be treated as a refreshable platform, not a static-token platform.
+  - Authorization must request `scope=basic write offline_access`.
+  - `access_token` expires; long-term stability depends on `refresh_token`.
+  - The worker persists Tumblr token state in `/data/tumblr-oauth.json`.
+  - A refresh lock now serializes Tumblr token refresh so parallel commands do not invalidate each other by rotating the refresh token at the same time.
+  - If Tumblr auth fails again, test in this order:
+    1. `python -m app.main verify-platforms --platform tumblr`
+    2. `python -m app.main tumblr-refresh-token`
+    3. `python -m app.main run-tumblr-once`
+
+- `DEV.to` may reject duplicate canonical URLs with HTTP `422`.
+  - Real API error: `Canonical url has already been taken.`
+  - This usually means the article already exists on DEV.to but local delivery state does not know that yet.
+  - The current code now looks up existing DEV.to posts by `canonical_url` and reuses them instead of failing repeatedly.
+
+- Railway repo-bundled secrets are convenient but risky.
+  - `railway.secrets.json` works, but it also puts secrets into git history.
+  - For a future self-hosted server, the safer default is `/data/wappkit-secrets.json` with the repo file removed or minimized.
+
+- Local pytest runs on this machine may need explicit environment flags.
+  - The local Python environment currently has a `pytest_asyncio` plugin compatibility issue during plugin auto-load.
+  - If that appears again, run tests with:
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+PYTHONPATH=.
+pytest -q
+```
+
+## Last Verified State
+
+Last manually verified on `2026-04-13`:
+
+- `pytest -q` passed with `64 passed`
+- `python -m app.main verify-platforms` passed for `devto, blogger, wordpress, mastodon, tumblr, writeas`
+- `python -m app.main run-selected-once` completed successfully for the currently enabled platforms
+- `Tumblr` real publish path succeeded again after reauthorization
+- `GitBook` is intentionally not part of the active platform set
+
 ## Single Secrets File
 
 If Railway variables become too noisy, use a single JSON file instead.
@@ -498,4 +552,3 @@ Verification behavior:
 - `WordPress.com`: reads account and site metadata
 - `Mastodon`: verifies account credentials
 - `Tumblr`: validates the current token and falls back to refresh when needed, then reads blog info
-- `GitBook`: validates the token, reads the configured site, and lists attached site-spaces
