@@ -116,6 +116,17 @@ def test_tumblr_obf_values_decode(monkeypatch, tmp_path: Path) -> None:
     assert config.tumblr_refresh_token == "tumblr-refresh-token"
 
 
+def test_gitbook_token_b64_overrides_plain(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("GITBOOK_TOKEN", "plain-token")
+    monkeypatch.setenv("GITBOOK_TOKEN_B64", "Z2l0Ym9vay1iNjQtdG9rZW4=")
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "outputs"))
+
+    config = Config.load()
+
+    assert config.gitbook_token == "gitbook-b64-token"
+
+
 def test_secret_config_file_overrides_env(monkeypatch, tmp_path: Path) -> None:
     config_path = tmp_path / "wappkit-secrets.json"
     config_path.write_text(

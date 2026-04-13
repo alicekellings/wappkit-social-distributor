@@ -87,10 +87,23 @@ This file tracks which external distribution platforms are already wired into `w
     - tracked repo config now prefers `TUMBLR_*_OBF`
     - current live result was `Draft created on Tumblr`, so the publication chain is already confirmed working
 
+- `GitBook`
+  - Type: imported long-form article on a docs site
+  - Auth: API token + org id + site id
+  - Status: live and validated with a real visible publish
+  - Current target: `https://estar-1.gitbook.io/estar-docs/`
+  - Credential entry: `https://developer.gitbook.com/`
+  - Main env vars: `GITBOOK_TOKEN`, `GITBOOK_ORG_ID`, `GITBOOK_SITE_ID`, `GITBOOK_PUBLISH_STATUS`, `GITBOOK_HIDDEN`, `GITBOOK_IMPORT_ENHANCE`
+  - Notes:
+    - current implementation uses the real GitBook API instead of a placeholder scaffold
+    - the worker creates a space, imports the source URL, attaches that space to the configured site, and publishes it visibly by default
+    - `run-gitbook-once --dry-run` writes the import manifest only
+    - `verify-platforms --platform gitbook` validates token + site access without creating a post
+
 - `Write.as Anonymous`
   - Type: minimalist long-form note
   - Auth: none for anonymous publishing
-  - Status: publishing code added; pending first live production publish
+  - Status: live and already verified with a real anonymous publish
   - Current target: `https://write.as/`
   - Credential entry: none
   - Main env vars: `WRITEAS_BASE_URL`, `WRITEAS_FONT`, `WRITEAS_LANGUAGE`, `WRITEAS_REQUIRE_LLM_FOR_PUBLICATION`
@@ -124,4 +137,5 @@ For Wappkit right now, the most practical publishing stack is:
 3. `WordPress.com`
 4. `Mastodon`
 5. `Tumblr`
-6. `Write.as Anonymous`
+6. `GitBook`
+7. `Write.as Anonymous`

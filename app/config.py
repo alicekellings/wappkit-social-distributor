@@ -145,6 +145,12 @@ class Config:
     tumblr_publish_status: str = "draft"
     tumblr_default_tags: list[str] | None = None
     tumblr_require_llm_for_publication: bool = True
+    gitbook_token: str | None = None
+    gitbook_org_id: str | None = None
+    gitbook_site_id: str | None = None
+    gitbook_publish_status: str = "published"
+    gitbook_hidden: bool = False
+    gitbook_import_enhance: bool = False
     writeas_base_url: str = "https://write.as"
     writeas_font: str = "serif"
     writeas_language: str = "en"
@@ -210,6 +216,10 @@ class Config:
         if tumblr_publish_status not in {"draft", "published"}:
             tumblr_publish_status = "draft"
 
+        gitbook_publish_status = os.getenv("GITBOOK_PUBLISH_STATUS", "published").strip().lower()
+        if gitbook_publish_status not in {"draft", "published"}:
+            gitbook_publish_status = "published"
+
         mastodon_visibility = os.getenv("MASTODON_VISIBILITY", "unlisted").strip().lower()
         if mastodon_visibility not in {"public", "unlisted", "private", "direct"}:
             mastodon_visibility = "unlisted"
@@ -269,6 +279,12 @@ class Config:
             tumblr_publish_status=tumblr_publish_status,
             tumblr_default_tags=_split_csv(os.getenv("TUMBLR_DEFAULT_TAGS", "wappkit,blog,software")),
             tumblr_require_llm_for_publication=_env_bool("TUMBLR_REQUIRE_LLM_FOR_PUBLICATION", True),
+            gitbook_token=_env_secret_value("GITBOOK_TOKEN", "GITBOOK_TOKEN_B64", "GITBOOK_TOKEN_OBF"),
+            gitbook_org_id=os.getenv("GITBOOK_ORG_ID") or None,
+            gitbook_site_id=os.getenv("GITBOOK_SITE_ID") or None,
+            gitbook_publish_status=gitbook_publish_status,
+            gitbook_hidden=_env_bool("GITBOOK_HIDDEN", False),
+            gitbook_import_enhance=_env_bool("GITBOOK_IMPORT_ENHANCE", False),
             writeas_base_url=os.getenv("WRITEAS_BASE_URL", "https://write.as").rstrip("/"),
             writeas_font=writeas_font,
             writeas_language=os.getenv("WRITEAS_LANGUAGE", "en").strip().lower() or "en",

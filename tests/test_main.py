@@ -29,7 +29,12 @@ def test_describe_rewrite_mode_for_fallback_article() -> None:
 
 
 def test_normalize_platforms_keeps_supported_unique_values() -> None:
-    assert normalize_platforms(["devto", "blogger", "devto", "mastodon"]) == ["devto", "blogger", "mastodon"]
+    assert normalize_platforms(["devto", "blogger", "gitbook", "devto", "mastodon"]) == [
+        "devto",
+        "blogger",
+        "gitbook",
+        "mastodon",
+    ]
 
 
 def test_normalize_platforms_falls_back_to_devto() -> None:

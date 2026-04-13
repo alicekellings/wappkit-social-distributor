@@ -29,6 +29,7 @@ The next integrated targets are:
 - `WordPress.com`
 - `Mastodon`
 - `Tumblr`
+- `GitBook`
 - `Write.as Anonymous`
 
 ## Phase 1 Scope
@@ -43,6 +44,7 @@ The next integrated targets are:
 - optionally rewrite and publish to `WordPress.com`
 - optionally rewrite and publish short social posts to `Mastodon`
 - optionally rewrite and publish adapted drafts to `Tumblr`
+- optionally import the source article into `GitBook` and publish it visibly on the docs site
 - optionally rewrite and anonymously publish a minimalist copy to `Write.as`
 - persist delivery history in SQLite
 
@@ -91,6 +93,10 @@ Current enforced angle strategy:
   - internet-native note / curated digest angle
   - emphasize what stood out, why it matters, and what deserves attention next
   - require a platform-native section such as `Why this matters`
+- `GitBook`
+  - docs-site mirror angle
+  - preserve the original article body by importing the public page into a dedicated GitBook space
+  - publish visibly under the configured site instead of keeping the space hidden
 - `Write.as`
   - minimalist essay / quiet-note angle
   - emphasize clarity, reflection, and the most useful signal without extra product framing
@@ -135,6 +141,7 @@ python -m app.main run-blogger-once --slug choosing-a-clean-tool-structure-for-w
 python -m app.main run-wordpress-once --dry-run
 python -m app.main run-mastodon-once --dry-run
 python -m app.main run-tumblr-once --dry-run
+python -m app.main run-gitbook-once --dry-run
 python -m app.main run-writeas-once --dry-run
 python -m app.main run-selected-once --dry-run
 python -m app.main verify-platforms
@@ -165,10 +172,33 @@ DELIVERY_PLATFORMS=devto
 DELIVERY_PLATFORMS=devto,blogger,wordpress
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr
+DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr,gitbook
 DELIVERY_PLATFORMS=devto,blogger,wordpress,mastodon,tumblr,writeas
 ```
 
 The worker now runs all selected platforms in sequence during each cycle.
+
+## GitBook Setup
+
+Required env vars:
+
+- `GITBOOK_TOKEN`
+- `GITBOOK_ORG_ID`
+- `GITBOOK_SITE_ID`
+
+Optional env vars:
+
+- `GITBOOK_PUBLISH_STATUS` default `published`
+- `GITBOOK_HIDDEN` default `0`
+- `GITBOOK_IMPORT_ENHANCE` default `0`
+
+Notes:
+
+- the current implementation uses the real GitBook API
+- it creates a dedicated temporary space, imports the public source article URL, attaches that space to the configured site, and publishes it visibly by default
+- `python -m app.main run-gitbook-once --dry-run` writes the import manifest without publishing
+- `python -m app.main run-gitbook-once` performs a live import and site publish
+- `verify-platforms --platform gitbook` checks the token, site access, and current site-space listing without creating content
 
 ## Write.as Anonymous Setup
 
@@ -492,3 +522,4 @@ Verification behavior:
 - `WordPress.com`: reads account and site metadata
 - `Mastodon`: verifies account credentials
 - `Tumblr`: validates the current token and falls back to refresh when needed, then reads blog info
+- `GitBook`: validates the token, reads the configured site, and lists attached site-spaces
